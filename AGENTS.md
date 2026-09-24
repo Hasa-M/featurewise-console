@@ -1,148 +1,80 @@
 # AGENTS.md — Featurewise
- 
-Canonical instructions for all AI coding agents (Codex, Claude Code, and any future tool).
-CLAUDE.md imports this file. Do not duplicate rules elsewhere.
- 
-## What this project is
- 
-Featurewise is a Specification Analysis Engine for software product development. It analyzes
-user-authored feature specifications and supporting context and returns individually addressable,
-evidence-backed findings. The Featurewise Console is its first-party control plane and client.
-The MVP is a local-first prototype built by a solo developer. It is NOT a production system.
 
-[ADR-0036](docs/architecture/adr/ADR-0036-product-direction-and-inference-sources.md)
-records MVP completion and future product direction. Complete the Console analysis path with one model configuration with access provided and usage paid for by Featurewise. No personal AI connection, customer API key, local model setup, or model selector is required for that mode.
-The analyzer and analysis endpoints remain unimplemented; this decision does not make them
-available. Specific provider/model choice and analyzer policies remain open.
- 
-## Architecture documentation is the source of truth
- 
-This is the most important rule in this file:
- 
-1. Before designing or implementing anything non-trivial, READ the relevant ADRs in
-   `docs/architecture/adr/` and the diagrams in `docs/architecture/diagrams/`.
-   Consider that they may still contain errors or need amendment.
-2. ADR-0030, ADR-0031, and ADR-0032 are authoritative for the product domain, traceable
-   analysis inputs, and analysis lifecycle. Superseded terminology remains only where
-   historical ADRs and migrations preserve the decisions and schema they originally recorded.
-3. When you have a doubt about structure, naming, flow, or scope, check the ADRs FIRST and
-   ask the user with the relevant architectural context.
-4. If a requested change conflicts with an accepted ADR: STOP. Do not silently diverge.
-   Say which ADR conflicts and propose either a different approach or an ADR amendment.
-5. If you are making a significant new architectural decision, propose a new ADR
-   (same minimal style: Context / Decision / Consequences). Do not bury decisions in code.
-6. The accepted analysis boundary and lifecycle are defined by ADR-0030 through ADR-0032
-   and `docs/architecture/diagrams/04-sequence-analysis-lifecycle/`. Do not invent deferred
-   endpoints, analyzer behavior, retries, prompts, provider policy, or verification policy.
+Canonical instructions for coding agents. CLAUDE.md imports this file.
 
-## Stack
- 
-- Backend: NestJS + TypeScript, modular monolith, REST/JSON (ADR-0002, ADR-0009 file).
-- Frontend: React + Vite + TypeScript Featurewise Console (separate app; backend owns all
-  business logic).
-- Database: PostgreSQL. Analysis runs, findings, and reviews are relational; versioned
-  analysis settings and immutable snapshots use JSON where defined by ADR-0031/0032.
-- Object storage: private AWS S3 for uploaded context originals and prepared derivatives;
-  Postgres stores metadata and immutable keys/version identifiers only (ADR-0011/0029/0031).
-- For the MVP, LLM/model providers are called ONLY from the backend analysis boundary.
-  The Console never calls a provider directly.
+Featurewise retains a local-first React/Vite Console and NestJS modular monolith
+for authentication and Organization → Project → Feature management. A separate
+plugin, developed elsewhere, performs reviews in the user's environment.
+This repository prepares report persistence; ingestion and history are deferred.
 
-## Domain model (do not improvise on this)
- 
-- Organization → Project → Feature → AnalysisRun → AnalysisFinding → FindingReview
-  (ADR-0030/0032).
-- Feature is the sole analysis unit. Whether work is new or pre-existing belongs in the
-  specification or supporting context, not in a discriminator or nested update entity.
-- `Feature.specificationContent` is the user-authored canonical feature specification.
-- Each Feature owns exactly one editable `ContextArtifact`. Its `content` and selected uploaded
-  files are supporting context, separate from the specification (ADR-0031).
-- Each Project owns at most one editable `ProjectContext`; it is a distinct analysis source,
-  not a generated summary or feature-membership projection.
-- An AnalysisRun returns zero or more immutable, evidence-backed AnalysisFindings. Evidence
-  resolves only inside that run's exact prepared-context snapshot.
-- FindingReview records are append-only. Accepting, dismissing, resolving, or deferring a
-  finding never mutates the original model assertion; current disposition is a projection of
-  the latest review.
+## Architecture first
 
-## Hard invariants (violating these = wrong implementation)
- 
-- Module boundaries: each NestJS module exposes a public API; other modules must not import its
-  internals (ADR-0002). Keep analysis extractable from the in-process MVP later.
-- At most ONE non-terminal AnalysisRun per Feature, enforced race-safely by a PostgreSQL partial
-  unique index; an application pre-check is only a fast path (ADR-0032).
-- AnalysisRun statuses are exactly: queued, preparing_context, analyzing, validating_output,
-  repairing_output, verifying_findings, persisting, completed, failed (ADR-0032).
-- `inputSnapshot` is immutable from run creation. `preparedContextSnapshot` may transition once
-  from null to a value during context preparation and is write-once afterward (ADR-0031/0032).
-- Only selected, ready files enter a new input snapshot. Capture exact original and prepared S3
-  keys, version IDs, checksums, MIME types, sizes, and preparation versions, and atomically set
-  `StorageObject.firstUsedAt` only if it is unset. Used objects cannot be physically purged.
-- S3 object keys are NEVER overwritten. Uploads and prepared derivatives always create immutable,
-  versioned keys; SQL migrations never delete S3 objects (ADR-0029/0031).
-- Prompt templates are versioned repository files. Engine output is runtime-validated against
-  the schema version recorded by the AnalysisRun, and every LLM attempt is logged. Retry limits,
-  specific provider/model choice, prompt content, verification, deduplication, and evaluation policy
-  are deferred (ADR-0032).
-- Future analysis start/status/history, finding, and review endpoints must not be implemented
-  until a real analyzer vertical slice backs them (ADR-0032).
-- External API identities use immutable public keys under ADR-0028 as amended by ADR-0030–0032.
-  The frontend never receives, stores, derives, routes with, or sends domain UUIDs.
-- Passwords: Argon2id via a standard library. NEVER write custom hashing/salting (ADR-0015).
+Read relevant ADRs and diagrams in `docs/architecture/` before non-trivial work.
+ADR-0037 defines product scope, ADR-0038 report/evidence/decision persistence,
+ADR-0039 auth and attachment retention. The active catalog contains current
+decisions only; use `docs/baseline-recovery.md` for the earlier baseline.
+Do not silently diverge from an accepted decision. Explain a conflict and propose
+an explicit update, unless the user already authorized that exact change.
 
-## MVP scope guards (do NOT build these, even if they seem useful)
- 
-No queue, worker, dedicated AI service, or multi-agent orchestration. Analysis is asynchronous
-from the client perspective but remains inside the NestJS process for the local-first MVP
-(ADR-0032). GitHub repository context is the sole real third-party context integration
-authorized by ADR-0033, which amends ADR-0014/0031/0032. Figma/Jira context arrives
-as uploaded or pasted artifacts; other connectors remain deferred.
-Customer API accounts, AI-subscription connections, local/private inference integrations,
-and additional product clients are deferred under ADR-0036. Cloud is the product destination,
-not an instruction to refactor or expand the current MVP. Local-first does not mean local
-inference. Future clients share the application capability and authorized data; they do not
-duplicate engine logic. Do not invent provider support, integration contracts, or fallback policy.
-No teams, roles, permissions, invitations, 2FA, password reset (ADR-0015).
-No public production deployment (ADR-0010 file). If a task seems to require one of
-these, flag it instead of building it.
- 
-## Git workflow (ADR-0008 file)
- 
-Trunk-based development on `main`, short-lived branches deleted after merge.
-Conventional Commits: `type(scope): imperative description`.
-Allowed types: feat, fix, docs, test, refactor, chore, build, ci, perf, style, revert, spike.
- 
-## Commands
- 
-Backend commands are run from `backend/`:
+## Boundaries and invariants
 
-- Install dependencies: `npm install`
-- Development server: `npm run start:dev`
-- Build: `npm run build`
-- Unit tests: `npm test`
-- End-to-end tests: `npm run test:e2e`
-- Lint: `npm run lint`
+- Keep NestJS module internals private; use exported public APIs across modules.
+- The backend owns authorization and persistence; neither it nor the Console
+  executes reviews, selects models, prepares inputs or connects to repositories.
+- One operator belongs to one organization. Organizations may have multiple
+  projects; projects may initially have no features. A feature requires a title.
+- Resolve every project through the current organization and every nested
+  feature through its parent. Auth/session responses do not contain a project.
+- API and frontend identities use immutable public keys; UUIDs stay internal.
+- Reports/findings/sources/evidence/attachments are immutable. Decisions are
+  append-only accepted/dismissed/resolved/deferred; newest createdAt then
+  publicNumber determines disposition. No cross-report finding matching.
+- Evidence stays inside its report. Attachments reference retained originals
+  of that same feature. Local code uses relative paths/excerpts; MCP uses references
+  without copied content. Verification metadata comes from the producer.
+- Keep Storage compiled and tested, with private originals, unique keys, exact
+  versions and checksums. Configuration is optional for login/container work.
+  No SQL migration deletes S3 objects. Confirmed original references and first-use
+  markers are immutable. Export and verify retired derivative inventory before
+  applying the incremental migration to existing data.
+- Passwords use standard Argon2id. Seed initializes an organization/operator only,
+  preserves user edits on rerun and reads the initial password from environment.
 
-Prisma is wired under `backend/prisma/`. The backend package provides `prisma:generate` and
-`prisma:seed` scripts but no npm migration script; inspect the current schema, migrations,
-and package scripts before database work.
- 
-## General behavior
+## Scope guards
 
-### Development harness and browser verification
+Do not implement placeholder report ingestion, history or finding-decision APIs.
+No editable specification/context, repository connector, backend analysis lifecycle,
+LLM log, conversion, selection or physical cleanup capability. No queues, workers,
+teams, roles, invitations, 2FA, password reset, organization selector or onboarding.
+No project/report deletion or public production deployment. Feature soft deletion
+is retained. Plugin integration and report history require a subsequent task.
 
-Use [the harness runbook](docs/testing/development-harness.md) for isolated
-fixtures, API/database inspection, input capture, and integration tests.
-Use Chrome DevTools MCP from Codex CLI when a task heavily affects a user-visible
-workflow, navigation, forms, or browser-specific behavior, or when browser
-verification is requested. The Claude Code Chrome extension is an optional desktop
-alternative if we are using Claude Code. Skip unrelated browser exploration
-when focused backend tests suffice.
-Record expected/actual results and useful evidence; repeat only after relevant
-changes, failures, or unresolved concerns. Never report an unavailable browser
-check as passed. The harness capture command can set `firstUsedAt`; it is not a
-read-only preview. Keep fixture data and generated artifacts in the harness.
+## Frontend
 
-- Prefer small, reviewable changes that map to one conventional commit.
-- Do not add dependencies without stating why; prefer what NestJS/Vite already provide.
-- TypeScript strict mode; no `any` unless justified in a comment.
-- When uncertain between two approaches, present both with tradeoffs instead of picking silently.
+Keep `app -> pages -> features -> shared`, typed feature APIs, CSS Modules,
+semantic variables, Lucide, Geist, shared UI and Storybook. Use React Hook Form
+and Zod for forms; TanStack Query for server state. AppShell/PageStructure own
+the single main landmark; pages register breadcrumbs/actions through the existing
+header provider. Preserve `/login`, `/`, `/projects/:projectKey` and
+`/projects/:projectKey/features/:featureKey` and honest unavailable history copy.
+
+## Workflow and checks
+
+Follow ADR-0008: trunk-based development and `type(scope): imperative description`.
+Preserve unrelated changes and ignored files. Prefer small reviewable changes.
+No dependencies without explaining why. TypeScript strict; avoid `any`.
+Use `docs/testing/development-harness.md` for isolated PostgreSQL/API inspection.
+Never substitute ordinary databases or real S3 resources for deterministic tests.
+Use Chrome DevTools MCP for relevant browser work when exposed; report unavailable
+checks honestly. Existing Playwright tooling can provide separate browser evidence.
+
+From `backend/`: `npm run build`, `npm test -- --runInBand`,
+`npm run test:e2e -- --runInBand`, `npm run lint` (no autofix),
+`npm run harness:up`, `npm run harness:test`, `npm run harness:typecheck`.
+Prisma: inspect schema/migrations before database work; `prisma:generate` and
+`prisma:seed` are available. Never rewrite historical migrations.
+From `frontend/`: `npm run build`, `npm run lint`,
+`npm test -- --run --project=unit`, `npm run build-storybook`,
+`npm run test-storybook -- --run`.
+Record expected/actual results and evidence in the harness; repeat checks only
+after relevant changes, failures or unresolved concerns.

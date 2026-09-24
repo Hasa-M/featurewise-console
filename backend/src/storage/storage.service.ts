@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
 import {
-  CopyObjectCommand,
-  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -15,9 +13,8 @@ import { ConfigService } from '@nestjs/config';
 
 import type { StorageConfig } from '../config/storage.config';
 
-export interface ContextStorageKeys {
+export interface FeatureStorageKeys {
   readonly originalKey: string;
-  readonly preparedPrefix: string;
   readonly uploadKey: string;
 }
 
@@ -45,11 +42,11 @@ export class StorageService {
     this.client = new S3Client({ region: this.config.region });
   }
 
-  createContextKeys(input: {
-    readonly contextKey: string;
+  createFeatureKeys(input: {
+    readonly featureKey: string;
     readonly organizationKey: string;
     readonly projectKey: string;
-  }): ContextStorageKeys {
+  }): FeatureStorageKeys {
     const token = randomUUID();
     const prefix = this.config.keyPrefix.replace(/^\/+|\/+$/g, '');
     const objectPrefix = [
@@ -58,24 +55,16 @@ export class StorageService {
       this.safeSegment(input.organizationKey),
       'projects',
       this.safeSegment(input.projectKey),
-      'contexts',
-      this.safeSegment(input.contextKey),
+      'features',
+      this.safeSegment(input.featureKey),
       'objects',
       token,
     ].join('/');
 
     return {
       originalKey: `${objectPrefix}/original`,
-      preparedPrefix: `${objectPrefix}/prepared`,
       uploadKey: `${prefix}/staging/${randomUUID()}`,
     };
-  }
-
-  createPreparedKey(
-    preparedPrefix: string,
-    preparationVersion: string,
-  ): string {
-    return `${preparedPrefix}/${this.safeSegment(preparationVersion)}/${randomUUID()}`;
   }
 
   async createUpload(input: {
@@ -127,45 +116,7 @@ export class StorageService {
     };
   }
 
-  async copyObject(input: {
-    readonly checksumSha256: string;
-    readonly contentType: string;
-    readonly destinationKey: string;
-    readonly sourceKey: string;
-    readonly sourceVersionId?: string | null;
-  }): Promise<StoredObjectResult> {
-    this.requireBucket();
-    const source = `${this.config.bucket}/${this.encodeKey(input.sourceKey)}${
-      input.sourceVersionId
-        ? `?versionId=${encodeURIComponent(input.sourceVersionId)}`
-        : ''
-    }`;
-    const response = await this.client.send(
-      new CopyObjectCommand({
-        Bucket: this.config.bucket,
-        ChecksumAlgorithm: 'SHA256',
-        ContentType: input.contentType,
-        CopySource: source,
-        Key: input.destinationKey,
-        MetadataDirective: 'REPLACE',
-        Metadata: {
-          checksumSha256: input.checksumSha256,
-        },
-      }),
-    );
-
-    return {
-      checksumSha256:
-        response.CopyObjectResult?.ChecksumSHA256 ?? input.checksumSha256,
-      etag: response.CopyObjectResult?.ETag?.replaceAll('"', '') ?? null,
-      versionId: response.VersionId ?? null,
-    };
-  }
-
-  async getObjectBytes(
-    key: string,
-    versionId?: string | null,
-  ): Promise<Buffer> {
+  async getObjectBytes(key: string, versionId: string): Promise<Buffer> {
     this.requireBucket();
     const response = await this.client.send(
       new GetObjectCommand({
@@ -196,6 +147,7 @@ export class StorageService {
         ChecksumSHA256: input.checksumSha256,
         ContentLength: input.body.byteLength,
         ContentType: input.contentType,
+        IfNoneMatch: '*',
         Key: input.key,
       }),
     );
@@ -210,7 +162,7 @@ export class StorageService {
   async createAccessUrl(input: {
     readonly contentDisposition: string;
     readonly key: string;
-    readonly versionId?: string | null;
+    readonly versionId: string;
   }) {
     this.requireBucket();
     const url = await getSignedUrl(
@@ -231,17 +183,6 @@ export class StorageService {
     };
   }
 
-  async deleteObject(key: string, versionId?: string | null): Promise<void> {
-    this.requireBucket();
-    await this.client.send(
-      new DeleteObjectCommand({
-        Bucket: this.config.bucket,
-        Key: key,
-        VersionId: versionId ?? undefined,
-      }),
-    );
-  }
-
   private requireBucket(): void {
     if (this.config.bucket === '') {
       throw new ServiceUnavailableException('S3 storage is not configured');
@@ -254,9 +195,5 @@ export class StorageService {
     }
 
     return value;
-  }
-
-  private encodeKey(value: string): string {
-    return value.split('/').map(encodeURIComponent).join('/');
   }
 }

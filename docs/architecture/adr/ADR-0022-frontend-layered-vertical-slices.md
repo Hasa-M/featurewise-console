@@ -4,16 +4,9 @@ Date: 2026-07-17
 
 Status: accepted
 
-Amended by: [ADR-0030](ADR-0030-specification-analysis-core-domain.md)
-
-> The frontend layering remains accepted. Current product slices cover
-> specification and context. Future analysis, finding, and finding-review
-> slices must follow the same layering when real endpoints support them;
-> generation and generated-spec review are no longer product capabilities.
-
 ## Context
 
-The phase 1 frontend must remain understandable for a solo developer while growing across authentication, workspace, feature, context, generation, and spec-review workflows.
+The phase 1 frontend must remain understandable for a solo developer while growing across authentication, organization, project, feature, and future report-history workflows.
 
 A single application-wide collection of components, API calls, and types would make ownership unclear. Copying environment, token, or provider setup into Storybook would also allow isolated components to behave differently from the application.
 

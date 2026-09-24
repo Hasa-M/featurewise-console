@@ -1,30 +1,35 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMemo, useState, type ReactNode } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMemo, useState, type ReactNode } from "react";
+import { Controller, useForm } from "react-hook-form";
 
-import { getApiErrorMessage } from '@/shared/api';
-import { FormModal } from '@/shared/ui/form-modal';
-import { TextInput } from '@/shared/ui/text-input';
+import { getApiErrorMessage } from "@/shared/api";
+import { FormModal } from "@/shared/ui/form-modal";
+import { TextInput } from "@/shared/ui/text-input";
 
 import {
   organizationEditSchema,
   projectEditSchema,
   type OrganizationEditValues,
   type ProjectEditValues,
-} from '../lib/workspace-form-schemas';
+} from "../lib/workspace-form-schemas";
 import {
   WorkspaceActionsContext,
   type WorkspaceActionsContextValue,
-} from '../model/workspace-actions';
+} from "../model/workspace-actions";
 import {
   useUpdateOrganization,
   type Organization,
-} from '../model/use-organization';
-import { useUpdateProject, type Project } from '../model/projects';
+} from "../model/use-organization";
+import {
+  useCreateProject,
+  useUpdateProject,
+  type Project,
+} from "../model/projects";
 
 type WorkspaceAction =
-  | { readonly kind: 'organization'; readonly organization: Organization }
-  | { readonly kind: 'project'; readonly project: Project };
+  | { readonly kind: "organization"; readonly organization: Organization }
+  | { readonly kind: "project"; readonly project: Project }
+  | { readonly kind: "createProject"; readonly organizationKey: string };
 
 function OrganizationDialog({
   accessToken,
@@ -43,12 +48,12 @@ function OrganizationDialog({
 
   return (
     <FormModal
-      description='Update the workspace name shown throughout Featurewise.'
+      description="Update the workspace name shown throughout Featurewise."
       errorMessage={
         mutation.error
           ? getApiErrorMessage(
               mutation.error,
-              'The organization name could not be saved.',
+              "The organization name could not be saved.",
             )
           : null
       }
@@ -64,19 +69,19 @@ function OrganizationDialog({
         close();
       })}
       open
-      submitLabel='Save changes'
+      submitLabel="Save changes"
       submitting={mutation.isPending}
-      title='Edit organization'
+      title="Edit organization"
     >
       <Controller
         control={form.control}
-        name='name'
+        name="name"
         render={({ field, fieldState }) => (
           <TextInput
-            autoComplete='organization'
+            autoComplete="organization"
             disabled={mutation.isPending}
             errorMessage={fieldState.error?.message}
-            label='Organization name'
+            label="Organization name"
             maxLength={120}
             name={field.name}
             onBlur={field.onBlur}
@@ -107,10 +112,13 @@ function ProjectDialog({
 
   return (
     <FormModal
-      description='Rename the project without changing its features or context.'
+      description="Choose a name for this project."
       errorMessage={
         mutation.error
-          ? getApiErrorMessage(mutation.error, 'The project could not be saved.')
+          ? getApiErrorMessage(
+              mutation.error,
+              "The project could not be saved.",
+            )
           : null
       }
       onOpenChange={(open) => {
@@ -125,23 +133,82 @@ function ProjectDialog({
         close();
       })}
       open
-      submitLabel='Save changes'
+      submitLabel="Save changes"
       submitting={mutation.isPending}
-      title='Edit project'
+      title="Edit project"
     >
       <Controller
         control={form.control}
-        name='name'
+        name="name"
         render={({ field, fieldState }) => (
           <TextInput
             disabled={mutation.isPending}
             errorMessage={fieldState.error?.message}
-            label='Project name'
+            label="Project name"
             maxLength={120}
             name={field.name}
             onBlur={field.onBlur}
             onChange={field.onChange}
             required
+            value={field.value}
+          />
+        )}
+      />
+    </FormModal>
+  );
+}
+
+function CreateProjectDialog({
+  accessToken,
+  organizationKey,
+  close,
+}: {
+  accessToken: string;
+  organizationKey: string;
+  close: () => void;
+}) {
+  const mutation = useCreateProject(accessToken);
+  const form = useForm<ProjectEditValues>({
+    defaultValues: { name: "" },
+    resolver: zodResolver(projectEditSchema),
+  });
+  return (
+    <FormModal
+      open
+      title="Create project"
+      description="Add a project to organize your features."
+      submitLabel="Create project"
+      submitting={mutation.isPending}
+      onReset={form.reset}
+      errorMessage={
+        mutation.error
+          ? getApiErrorMessage(
+              mutation.error,
+              "The project could not be created.",
+            )
+          : null
+      }
+      onOpenChange={(open) => {
+        if (!open) close();
+      }}
+      onSubmit={form.handleSubmit(async (values) => {
+        await mutation.mutateAsync({ organizationKey, name: values.name });
+        close();
+      })}
+    >
+      <Controller
+        control={form.control}
+        name="name"
+        render={({ field, fieldState }) => (
+          <TextInput
+            label="Project name"
+            maxLength={120}
+            required
+            disabled={mutation.isPending}
+            errorMessage={fieldState.error?.message}
+            name={field.name}
+            onBlur={field.onBlur}
+            onChange={field.onChange}
             value={field.value}
           />
         )}
@@ -161,8 +228,10 @@ export function WorkspaceActionsProvider({
   const value = useMemo<WorkspaceActionsContextValue>(
     () => ({
       openEditOrganization: (organization) =>
-        setAction({ kind: 'organization', organization }),
-      openEditProject: (project) => setAction({ kind: 'project', project }),
+        setAction({ kind: "organization", organization }),
+      openEditProject: (project) => setAction({ kind: "project", project }),
+      openCreateProject: (organizationKey) =>
+        setAction({ kind: "createProject", organizationKey }),
     }),
     [],
   );
@@ -170,13 +239,19 @@ export function WorkspaceActionsProvider({
   return (
     <WorkspaceActionsContext.Provider value={value}>
       {children}
-      {action?.kind === 'organization' ? (
+      {action?.kind === "organization" ? (
         <OrganizationDialog
           accessToken={accessToken}
           close={() => setAction(undefined)}
           organization={action.organization}
         />
-      ) : action?.kind === 'project' ? (
+      ) : action?.kind === "createProject" ? (
+        <CreateProjectDialog
+          accessToken={accessToken}
+          organizationKey={action.organizationKey}
+          close={() => setAction(undefined)}
+        />
+      ) : action?.kind === "project" ? (
         <ProjectDialog
           accessToken={accessToken}
           close={() => setAction(undefined)}

@@ -1,4 +1,4 @@
-name: featurewise-harness
+name: featurewise-console-harness
 services:
   postgres:
     image: postgres:16

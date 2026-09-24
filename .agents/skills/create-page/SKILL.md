@@ -44,13 +44,9 @@ Always read:
 - `docs/architecture/diagrams/05-c4-frontend-navigation/README.md`;
 - the current worktree status.
 
-For Feature specification, context, or analysis surfaces, also read:
+For domain pages also read ADR-0037, ADR-0038 and ADR-0039 in the architecture catalog.
 
-- `docs/architecture/adr/ADR-0030-specification-analysis-core-domain.md`;
-- `docs/architecture/adr/ADR-0031-feature-specifications-and-traceable-analysis-inputs.md`;
-- `docs/architecture/adr/ADR-0032-analysis-application-boundary-and-lifecycle.md`.
-
-Read every additional ADR and diagram relevant to the page's domain or workflow. For specification editing, analysis, findings, reviews, context, authentication, uploads, or domain-state behavior, trace the accepted backend boundary rather than inferring it from UI copy. Do not propose analysis requests, polling, finding queries, or review mutations before a real backend vertical slice supports them.
+Read every additional ADR and diagram relevant to the page's domain or workflow. For reports, findings, decisions, authentication, attachments, or domain-state behavior, trace the accepted backend boundary rather than inferring it from UI copy. Do not propose report ingestion, history queries or decision mutations before a real backend vertical slice supports them.
 
 Inspect at minimum:
 
@@ -65,7 +61,10 @@ Preserve unrelated worktree changes. Do not assume uncommitted files belong to t
 
 ### Trace whether the platform supports the page
 
-For Feature workspace pages, preserve the accepted route `/projects/:projectKey/features/:featureKey` and the `Specification`, `Context`, and `Analyses` surfaces. `Specification` is the default for a missing or invalid tab value. `Analyses` must render an honest unavailable or empty state until real analysis endpoints exist; it must not issue a placeholder request. Feature is the sole analysis unit.
+Preserve `/projects/:projectKey/features/:featureKey`. The current Feature page
+shows title actions and an explicit unavailable history state; it sends no report,
+finding, attachment or ingestion requests. The plugin is developed separately.
+Projects are organization-scoped and may be empty; auth has no single project.
 
 Determine and report:
 
@@ -153,7 +152,7 @@ After explicit approval:
 7. Use TanStack Query for server state and existing query-option factories. Do not copy server state into local state without a demonstrated editing need.
 8. Compose the confirmed PageHeader through the supported PageStructure ownership path. Provide Breadcrumb, optional subtitle, and action content; render effective page content in the canvas body.
 9. Preserve exactly one page-level heading, one `main`, router-neutral shared UI, semantic variables, CSS Modules, and named Lucide imports.
-10. Implement only applicable states. Use precise Featurewise vocabulary and sentence-case operational copy. Feature workspaces use Specification, Context, and Analyses; analysis output uses analysis run, finding, evidence, and finding review.
+10. Implement only applicable states. Use precise Featurewise vocabulary and sentence-case operational copy. Feature pages show title actions and unavailable review history. Persistence terminology is review report, finding, source, evidence, attachment and finding decision.
 11. Update sidebar selection, navigation actions, prefetching, and cache behavior only when the confirmed route requires them.
 12. Update an accepted diagram or add/amend an ADR when the implementation makes a significant architectural decision.
 

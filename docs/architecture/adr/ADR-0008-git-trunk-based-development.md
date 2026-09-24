@@ -13,6 +13,9 @@ The workflow must be structured enough to preserve traceability, but not so heav
 
 Use trunk-based development with one permanent branch: `main`.
 
+The frozen `deprecated` branch archives the previous implementation. Active
+development continues only on `main`.
+
 Use short-lived branches for meaningful units of work. Branches should be deleted after merging.
 
 Use Conventional Commit-style messages:

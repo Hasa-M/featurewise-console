@@ -1,120 +1,22 @@
-# C4 Component — Featurewise Console Navigation
-
-## Purpose and implementation status
-
-This document describes the current Featurewise Console navigation, React
-architecture, route ownership, persistent shell, and TanStack Query
-boundaries. Analysis execution and findings UI remain unavailable until a real
-backend vertical slice exists.
-
-## Routes and workspaces
-
-- `/` renders Projects and remains the application home.
-- `/projects/:projectKey` renders a Project workspace with `features`,
-  `context`, and `repository` tabs. Repository owns connection, selection,
-  base-branch, refresh, and disconnect states.
-- `/projects/:projectKey/features/:featureKey` renders a Feature workspace with
-  `specification`, `context`, `repository`, and `analyses` tabs. Repository
-  owns branch inheritance/override and atomic file selection. Missing or
-  invalid values resolve to `specification`.
-
-The Specification tab edits the user's canonical
-`Feature.specificationContent`. Context edits separate supporting
-`ContextArtifact.content` and selected/archived files. Analyses honestly shows
-an unavailable or empty state until real endpoints exist; it must not issue a
-fake request.
-
-Project and Feature public keys (`PRJ-*` and `FEAT-*`) remain the only frontend
-identifiers. Central route builders create links from response `publicKey`
-values. UUIDs stay backend-internal under ADR-0028.
-
-## Persistent layout and ownership
-
-`AppShell` and `PageStructure` remain mounted above lazy route pages.
-`PageStructure` owns the single `main` landmark. Header, Sidebar, user menu,
-action providers, query observers, and PageHeader registration survive child
-navigation.
-
-The Sidebar hierarchy remains:
-
-```text
-Projects
-└── Project
-    └── Features
-        └── Feature
-```
-
-Workspace and Features slices own typed API contracts, mappings, queries,
-forms, actions, and cache updates. Context owns supporting text and the private
-file lifecycle. Repository Context owns typed configuration queries, lazy tree
-navigation, client-side search over loaded allowed paths, and branch-impact
-errors. Repository, branch, and per-directory collections use manually
-advanced 100-item infinite queries. Later tree pages are pinned to the first
-page commit SHA; pages are deterministically flattened and deduplicated, while
-repository, effective-branch, or commit changes reset loaded metadata, search,
-and open directories without discarding saved selections. A later Analysis
-slice will own runs, findings, evidence, and
-review behavior; it must call the backend application boundary rather than
-contain engine rules.
-
-## Server-state boundaries
-
-TanStack Query remains the Console server-state cache and React Router remains
-the URL/navigation owner. Existing organization, project, feature, feature
-context, repository-context, and file-archive query policies remain in force. A future contract
-change must update its owning slice and cache policy together.
-
-Removed product projections include generated-spec version/count, generation
-activity, FeatureUpdate state, and alignment. Analysis query keys, polling,
-findings, and review mutations are added only with real endpoints. No
-placeholder analysis cache entry exists.
-
-## Component diagram
+# Console navigation
 
 ```mermaid
-C4Component
-  title Featurewise Console navigation components
-
-  Person(user, "Authenticated user", "Manages feature specifications/context and reviews analyses")
-
-  Container_Boundary(console, "React + Vite Featurewise Console") {
-    Component(auth, "AuthProvider", "React context", "Restores session and clears cached data on logout/failure")
-    Component(router, "React Router", "Data router", "Matches URLs and lazy-loads route modules")
-    Component(shell, "AppShell + PageStructure", "React components", "Keeps Header, Sidebar, and Outlet mounted")
-    Component(actions, "Entity action providers", "React context", "Own reusable organization, project, and feature actions")
-    Component(header, "PageHeader registration", "React context", "Connects lazy route breadcrumbs/actions to the persistent shell")
-    Component(pages, "Projects, Project, and Feature pages", "Lazy route modules", "Compose Specification, Context, Repository, and Analyses workspaces")
-    Component(query, "TanStack QueryClient", "In-memory server-state cache", "Caches, deduplicates, retries, seeds, and prefetches REST data")
-    Component(slices, "Workspace, Features, Context, Repository Context, and future Analysis slices", "Typed feature boundaries", "Own API DTOs, mappings, hooks, uploads, repository navigation, findings, and reviews")
-    Component(http, "Shared HTTP client", "Fetch wrapper", "Adds API base URL, auth, JSON parsing, and normalized errors")
-  }
-
-  Container(api, "Backend API", "NestJS REST/JSON", "Owns authorization, context lifecycle, and analysis business logic")
-  Container(storage, "Private AWS S3", "Object storage", "Stores immutable context originals and prepared derivatives")
-
-  Rel(user, router, "Activates links", "Browser history")
-  Rel(router, shell, "Renders authenticated layout")
-  Rel(shell, pages, "Renders active child", "Outlet")
-  Rel(pages, header, "Registers breadcrumb and actions")
-  Rel(header, shell, "Supplies active PageHeader props")
-  Rel(shell, actions, "Invokes shared entity actions")
-  Rel(shell, query, "Observes navigation resources")
-  Rel(pages, query, "Observes route resources")
-  Rel(auth, query, "Clears on logout/session failure")
-  Rel(query, slices, "Executes stable query options")
-  Rel(slices, http, "Calls typed endpoint functions")
-  Rel(http, api, "GET/POST/PATCH/DELETE", "REST/JSON + bearer token")
-  Rel(slices, storage, "Uploads bytes", "Backend-authorized presigned POST")
-  Rel(api, storage, "Confirms, prepares, signs access, and cleans up", "AWS SDK")
+flowchart TD
+  Login[/login] --> Auth[AuthProvider and protected routes]
+  Auth --> Shell[AppShell / PageStructure]
+  Shell --> Home[/ Projects]
+  Home --> Project[/projects/:projectKey]
+  Project --> Feature[/projects/:projectKey/features/:featureKey]
+  Feature --> Unavailable[Review history unavailable]
+  Shell --> Query[TanStack Query cache]
+  Home --> Actions[Workspace and feature action providers]
+  Project --> Actions
+  Feature --> Actions
 ```
 
-## Performance and failure boundaries
-
-- Lazy child routes remain separate production chunks and the persistent shell
-  avoids global remounts.
-- Cached server data remains the source of truth; local state is limited to
-  explicit editing drafts.
-- Prefetch remains intent-based and freshness determines repeat requests.
-- Authorization and resource visibility stay backend-owned.
-- Errors remain local to their owning shell, page, context/file, or future
-  analysis surface.
+AppShell owns the single main landmark and persistent selected navigation.
+Lazy pages register breadcrumbs and actions through PageHeader registration.
+The home lists and creates projects; a project lists/creates/renames features;
+the feature page supports title rename and soft deletion. Organization rename
+stays in the existing shell. Error, loading, empty and route fallback states
+remain local to their surface. Logout clears the session cache.

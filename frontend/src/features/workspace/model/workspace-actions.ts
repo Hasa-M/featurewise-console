@@ -1,11 +1,12 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext } from "react";
 
-import type { Organization } from './use-organization';
-import type { Project } from './projects';
+import type { Organization } from "./use-organization";
+import type { Project } from "./projects";
 
 export interface WorkspaceActionsContextValue {
   openEditOrganization(organization: Organization): void;
   openEditProject(project: Project): void;
+  openCreateProject(organizationKey: string): void;
 }
 
 export const WorkspaceActionsContext =
@@ -16,7 +17,7 @@ function useWorkspaceActionsContext() {
 
   if (context === null) {
     throw new Error(
-      'Workspace action hooks must be used within WorkspaceActionsProvider',
+      "Workspace action hooks must be used within WorkspaceActionsProvider",
     );
   }
 
@@ -29,7 +30,6 @@ export function useOrganizationActions() {
 }
 
 export function useProjectActions() {
-  const { openEditProject } = useWorkspaceActionsContext();
-  return { openEdit: openEditProject } as const;
+  const { openEditProject, openCreateProject } = useWorkspaceActionsContext();
+  return { openEdit: openEditProject, openCreate: openCreateProject } as const;
 }
-

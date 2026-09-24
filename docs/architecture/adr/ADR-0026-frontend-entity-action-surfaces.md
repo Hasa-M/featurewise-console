@@ -1,75 +1,30 @@
-# ADR-0026: Standardize Frontend Entity Action Surfaces and Edit Ownership
+# ADR-0026: Use shared entity actions and page header registration
 
-Date: 2026-07-30
+Date: 2026-09-24
 
 Status: accepted
 
-Amended by: [ADR-0030](ADR-0030-specification-analysis-core-domain.md)
-
-> Action-surface ownership remains accepted. Feature creation/editing uses
-> title and `specificationContent`; specification and context editing belong in
-> the Feature workspace. Origin, project-context membership, FeatureUpdate,
-> generated-spec, validation, consolidation, and alignment actions are removed.
-
 ## Context
 
-Entity actions must be reusable across route pages, lists, and the persistent
-navigation shell without requiring every editable field to use the same
-surface.
-Feature context, generated-spec drafts, validation, and generation controls
-need the dedicated Feature workspace. The generated-spec schema and
-`schemaVersion` remain repository/backend owned under ADR-0013.
+Metadata actions are invoked from pages, cards and the persistent navigation shell.
 
 ## Decision
 
-Classify frontend actions as quick metadata actions, destructive confirmation
-actions, or dedicated workspace editing.
+Use provider-backed actions owned by the Workspace and Features slices.
+Organization rename and project rename use a quick-edit modal; project creation
+uses a name-only modal. Feature creation/rename uses a title-only modal.
+Feature soft deletion uses a confirmation modal. Do not offer project or report
+deletion. Shared components own modal mechanics; slices own copy, schemas, API,
+mutations and cache updates using React Hook Form, Zod and TanStack Query.
 
-| Entity/action | Surface | Values |
-| --- | --- | --- |
-| Organization edit | Contextual quick edit or quick-edit modal | Name |
-| Project edit | Quick-edit modal | Name |
-| Feature create | Creation modal | Title and origin |
-| Feature edit | Quick-edit modal | Title, brief, include in project context |
-| Feature delete | Destructive confirmation | No editable values |
+After project creation refresh the home list and sidebar; the user can open its
+card. Feature creation opens the feature. Rename stays on the current surface.
+Deleting the active feature returns to its parent project.
 
-Project creation/deletion remain excluded by ADR-0001 and ADR-0015.
-FeatureUpdate actions are deferred.
-
-Shared UI owns domain-neutral modal and menu mechanics. Workspace and Features
-slices own DTOs, schemas, forms, mutations, cache updates, copy, and
-provider-backed action hooks. `shared/api` remains generic HTTP transport;
-there is no generic CRUD service or runtime entity registry.
-
-Quick metadata actions default to the reusable modal when they must be
-available from multiple surfaces. A consuming UI may instead present the same
-narrow action contextually, such as an inline form in a dropdown or popover,
-when that interaction is explicitly requested and remains accessible. The
-owning feature keeps its modal action available so another surface can invoke
-it without duplicating API or mutation behavior.
-
-Use React Hook Form and Zod for forms and TanStack Query for pessimistic
-mutations. Metadata changes never rewrite immutable run snapshots, change
-validated specs, or automatically start a run. Feature origin is selected at
-creation and remains immutable.
-
-The authenticated app mounts action providers once. Creation opens the new
-Feature by default; edit stays on the current surface; deletion redirects to
-the parent Project only when the deleted Feature owns the current route.
-
-Add a domain-neutral PageHeader registration provider. Lazy pages register
-`PageHeaderProps`; AppShell passes the active registration to PageStructure.
-Token ownership prevents an unmounting page from clearing a newer header.
+AppShell mounts PageStructure and its single `main` landmark. Lazy pages register
+PageHeader props via the shared registration provider. Breadcrumbs, subtitle and
+actions use this API; an old page cannot clear a newer page's header.
 
 ## Consequences
 
-- Entity actions behave consistently without leaking domain logic into shared
-  UI.
-- Quick metadata actions can match their immediate UI context while retaining
-  a reusable modal entry point.
-- Narrow inputs keep context, schema, spec, and generation fields out of quick
-  edits.
-- Brief and project-context metadata may affect future work but do not alter
-  historical snapshots or validated specs.
-- Future entities require explicit field classification, a narrow input type,
-  an owner, cache/navigation policy, and tests.
+Consistent actions reuse the existing design system without page-specific modal or header implementations. Metadata changes never alter historical report results.

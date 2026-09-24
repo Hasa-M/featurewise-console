@@ -12,12 +12,11 @@ export {
   type Feature,
   type FeatureQuickEditInput,
   type UpdateFeatureInput,
-} from './model/features';
+} from "./model/features";
 export {
   useFeatureActions,
   type FeatureCreateSuccessBehavior,
   type FeatureDeleteSuccessBehavior,
-} from './model/feature-actions';
-export { FeatureActionsProvider } from './ui/FeatureActionsProvider';
-export { FeatureSpecificationPanel } from './ui/FeatureSpecificationPanel';
-export { getFeaturePath } from './lib/feature-path';
+} from "./model/feature-actions";
+export { FeatureActionsProvider } from "./ui/FeatureActionsProvider";
+export { getFeaturePath } from "./lib/feature-path";

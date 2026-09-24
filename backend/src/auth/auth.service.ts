@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { verify } from 'argon2';
@@ -24,10 +20,6 @@ interface UserWithWorkspace {
   readonly isActive: boolean;
   readonly organization: {
     readonly publicNumber: number;
-    readonly projects: ReadonlyArray<{
-      readonly id: string;
-      readonly publicNumber: number;
-    }>;
   };
 }
 
@@ -109,7 +101,6 @@ export class AuthService {
       userKey: currentUser.userKey,
       username: currentUser.username,
       organizationKey: currentUser.organizationKey,
-      projectKey: currentUser.projectKey,
     };
   }
 
@@ -177,33 +168,18 @@ export class AuthService {
   private userWorkspaceInclude() {
     return {
       organization: {
-        include: {
-          projects: {
-            orderBy: { createdAt: 'asc' },
-            take: 1,
-          },
-        },
+        select: { publicNumber: true },
       },
     } as const;
   }
 
   private toCurrentUserContext(user: UserWithWorkspace): CurrentUserContext {
-    const project = user.organization.projects[0];
-
-    if (project === undefined) {
-      throw new ServiceUnavailableException(
-        'Authenticated workspace project is not available',
-      );
-    }
-
     return {
       organizationId: user.organizationId,
       organizationKey: formatPublicKey(
         'organization',
         user.organization.publicNumber,
       ),
-      projectId: project.id,
-      projectKey: formatPublicKey('project', project.publicNumber),
       userId: user.id,
       userKey: formatPublicKey('user', user.publicNumber),
       username: user.username,

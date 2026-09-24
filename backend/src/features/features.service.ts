@@ -1,9 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { AnalysisRunStatus, type Prisma } from '@prisma/client';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import type { CurrentUserContext } from '../auth/current-user-context';
 import { formatPublicKey } from '../common/public-identifiers';
@@ -17,7 +12,6 @@ interface FeatureRecord {
   readonly publicNumber: number;
   readonly projectId: string;
   readonly title: string;
-  readonly specificationContent: string;
   readonly createdById: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -27,13 +21,6 @@ interface FeatureRecord {
   readonly project: {
     readonly publicNumber: number;
   };
-}
-
-export interface AnalysisFeatureInputRecord {
-  readonly id: string;
-  readonly publicNumber: number;
-  readonly title: string;
-  readonly specificationContent: string;
 }
 
 @Injectable()
@@ -81,13 +68,7 @@ export class FeaturesService {
         data: {
           createdById: currentUser.userId,
           projectId: project.id,
-          specificationContent: dto.specificationContent?.trim() ?? '',
           title: dto.title.trim(),
-          contextArtifact: {
-            create: {
-              content: '',
-            },
-          },
         },
         include: this.featurePublicRelations(),
       }),
@@ -134,14 +115,10 @@ export class FeaturesService {
       featurePublicNumber,
     );
 
-    const data: { specificationContent?: string; title?: string } = {};
+    const data: { title?: string } = {};
 
     if (dto.title !== undefined) {
       data.title = dto.title.trim();
-    }
-
-    if (dto.specificationContent !== undefined) {
-      data.specificationContent = dto.specificationContent.trim();
     }
 
     const feature = await this.prismaService.feature.update({
@@ -163,24 +140,6 @@ export class FeaturesService {
       currentUser,
       featurePublicNumber,
     );
-    const activeRun = await this.prismaService.analysisRun.findFirst({
-      where: {
-        featureId: feature.id,
-        status: {
-          notIn: [AnalysisRunStatus.completed, AnalysisRunStatus.failed],
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (activeRun !== null) {
-      throw new ConflictException(
-        'Feature cannot be deleted while a run is active',
-      );
-    }
-
     await this.prismaService.feature.update({
       where: {
         id: feature.id,
@@ -198,44 +157,13 @@ export class FeaturesService {
     return this.getFeatureRecordByPublicNumber(
       currentUser,
       featurePublicNumber,
-      currentUser.projectId,
     );
-  }
-
-  async getAnalysisFeatureInput(
-    transaction: Prisma.TransactionClient,
-    currentUser: CurrentUserContext,
-    projectId: string,
-    featurePublicNumber: number,
-  ): Promise<AnalysisFeatureInputRecord> {
-    const feature = await transaction.feature.findFirst({
-      where: {
-        publicNumber: featurePublicNumber,
-        deletedAt: null,
-        projectId,
-        project: {
-          organizationId: currentUser.organizationId,
-        },
-      },
-      select: {
-        id: true,
-        publicNumber: true,
-        title: true,
-        specificationContent: true,
-      },
-    });
-
-    if (feature === null) {
-      throw new NotFoundException('Feature not found');
-    }
-
-    return feature;
   }
 
   private async getFeatureRecordByPublicNumber(
     currentUser: CurrentUserContext,
     featurePublicNumber: number,
-    projectId: string,
+    projectId?: string,
   ): Promise<FeatureRecord> {
     const feature = await this.prismaService.feature.findFirst({
       where: {
@@ -261,7 +189,6 @@ export class FeaturesService {
       publicKey: formatPublicKey('feature', feature.publicNumber),
       projectKey: formatPublicKey('project', feature.project.publicNumber),
       title: feature.title,
-      specificationContent: feature.specificationContent,
       createdByKey: formatPublicKey('user', feature.createdBy.publicNumber),
       createdAt: feature.createdAt,
       updatedAt: feature.updatedAt,

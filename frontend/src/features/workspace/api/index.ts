@@ -3,12 +3,13 @@ export {
   updateOrganization,
   type OrganizationDto,
   type UpdateOrganizationDto,
-} from './organization';
+} from "./organization";
 export {
+  createProject,
   getProject,
   getProjects,
   updateProject,
   type ProjectDto,
   type ProjectSummaryDto,
   type UpdateProjectDto,
-} from './projects';
+} from "./projects";

@@ -3,7 +3,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
-} from '@tanstack/react-query';
+} from "@tanstack/react-query";
 
 import {
   createFeature,
@@ -14,22 +14,21 @@ import {
   type FeatureDto,
   type UpdateFeatureDto,
   updateFeature,
-} from '../api';
+} from "../api";
 
 export interface Feature {
   readonly createdAt: Date;
   readonly createdByKey: string;
   readonly projectKey: string;
   readonly publicKey: string;
-  readonly specificationContent: string;
   readonly title: string;
   readonly updatedAt: Date;
 }
 
 export const featureKeys = {
   detail: (projectKey: string, featureKey: string) =>
-    ['feature', projectKey, featureKey] as const,
-  list: (projectKey: string) => ['features', projectKey] as const,
+    ["feature", projectKey, featureKey] as const,
+  list: (projectKey: string) => ["features", projectKey] as const,
 };
 
 export function toFeature(dto: FeatureDto): Feature {
@@ -38,7 +37,6 @@ export function toFeature(dto: FeatureDto): Feature {
     createdByKey: dto.createdByKey,
     projectKey: dto.projectKey,
     publicKey: dto.publicKey,
-    specificationContent: dto.specificationContent,
     title: dto.title,
     updatedAt: new Date(dto.updatedAt),
   };
@@ -124,9 +122,8 @@ export function useCreateFeature(accessToken: string) {
         featureKeys.list(feature.projectKey),
         (current) => [
           feature,
-          ...(current?.filter(
-            (item) => item.publicKey !== feature.publicKey,
-          ) ?? []),
+          ...(current?.filter((item) => item.publicKey !== feature.publicKey) ??
+            []),
         ],
       );
     },
@@ -141,7 +138,7 @@ export function useUpdateFeature(accessToken: string) {
       toFeature(await updateFeature(accessToken, featureKey, input)),
     onSuccess: (feature) => {
       queryClient.setQueriesData<Feature>(
-        { queryKey: ['feature'] },
+        { queryKey: ["feature"] },
         (current) =>
           current?.publicKey === feature.publicKey ? feature : current,
       );
@@ -179,7 +176,7 @@ export function useDeleteFeature(accessToken: string) {
           const data = query.state.data as Feature | undefined;
 
           return (
-            query.queryKey[0] === 'feature' &&
+            query.queryKey[0] === "feature" &&
             data?.publicKey === feature.publicKey
           );
         },

@@ -8,7 +8,7 @@ interface RedirectState {
   readonly from?: string;
 }
 
-function AuthLoadingPage() {
+export function AuthLoadingPage() {
   return (
     <main className={styles.loadingPage}>
       <div className={styles.loadingContent} role={'status'}>

@@ -1,49 +1,34 @@
-# ADR-0034: Use an isolated, inspectable development harness
+# ADR-0034: Use an isolated inspectable development harness
 
-Date: 2026-09-07
+Date: 2026-09-24
 
-Status: accepted (harness plan and CLI browser workflow approved; finalized 2026-09-09)
+Status: accepted
 
 ## Context
 
-The local-first Console needs repeatable integration checks and inspectable
-analysis inputs before an analyzer exists. Database columns alone do not make
-captures visible: the current capture capability returns an input snapshot
-without inserting an AnalysisRun. Coding agents also need explicit environment
-identity, fixtures, and evidence rather than guessing which application is running.
+The retained Console and report schema require repeatable database, API and browser checks without using ordinary data or cloud services.
 
 ## Decision
 
-Provide repository-local development commands, a dedicated PostgreSQL 16
-database, and a separate Console/API instance. A test composition root uses
-the real application modules with deterministic provider substitutes; a
-separately selected live mode uses explicitly configured GitHub/S3 resources.
-The deterministic storage substitute cannot invoke AWS. Background file cleanup
-is disabled in the interactive harness so fixtures remain inspectable; cleanup
-behavior remains covered by its dedicated tests.
+Use the dedicated `featurewise-console-harness` Docker Compose project and
+PostgreSQL volume. Fixed loopback ports identify its database and app services.
+Store credentials, fixtures, logs, inventories and evidence in ignored
+`.harness/console/`. Preserve the earlier `.harness/` artifacts and volume.
 
-The commands are developer tooling, not a supported product CLI or MCP adapter.
-They do not expose analysis endpoints or implement analysis execution. Actual
-capture invokes the existing v2 application capability, may set firstUsedAt,
-and exports immutable local artifacts without inventing AnalysisRun records.
-Object inspection uses exact captured versions. No SQL reset deletes S3 bytes.
+The test composition root uses real NestJS modules and substitutes storage with
+an object that cannot call S3. There is no live mode, provider configuration,
+capture, conversion, selection or cleanup command. Keep seed/reset, health,
+read-only database inspection, Swagger and Prisma Studio.
 
-Use local opt-in Swagger/OpenAPI for implemented HTTP contracts and Prisma
-Studio for persisted data. Use Chrome DevTools MCP for relevant agent-led UI
-verification from Codex CLI, with one connection smoke check during setup.
-The Claude Code Chrome extension remains an optional alternative when using Claude Code. Browser
-use is triggered by affected user workflows, browser-specific failures, or explicit
-requests; it is not an unconditional step for every edit.
+Test ordinary initialization separately from richer harness fixtures. Test
+migrations from empty and prior schemas, report relations, immutable assertions,
+append-only decisions, authentication with multiple projects, and isolation.
+Old-schema fixtures use separately named databases inside the dedicated container.
+
+Use Chrome DevTools MCP for agent browser checks when available. Report its
+absence honestly; automated Playwright checks are separate evidence and use the
+existing local tooling. No check may call AWS or use the normal development DB.
 
 ## Consequences
 
-- Inputs, provider mode, fixture identities, and failure evidence are inspectable.
-- The fixed harness database identity guards destructive reset operations.
-- Local artifacts can contain specification/repository content and remain ignored
-  by Git; credentials and signed URLs are excluded from reports.
-- Deterministic tests do not prove live OAuth/S3 transport or rendered UI behavior.
-- Real-service smoke checks and browser observations report their own status.
-- ADR-0032's prepared context, analyzer, and execution endpoints remain deferred.
-
-See [the harness runbook](../../testing/development-harness.md) and
-[the testing strategy](../../testing/integration-strategy.md).
+Reset affects only the fixed harness volume. Generated artifacts remain local. Unit tests and SDK substitutes do not claim live S3 transport was verified.

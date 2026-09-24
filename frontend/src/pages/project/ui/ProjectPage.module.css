@@ -91,14 +91,6 @@
   z-index: 1;
 }
 
-.specification {
-  min-height: calc(2 * var(--leading-normal) * 1em);
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-normal);
-  white-space: pre-wrap;
-}
 
 .updatedAt {
   padding-top: var(--space-3);

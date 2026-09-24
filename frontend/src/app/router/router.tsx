@@ -1,7 +1,7 @@
 import { createBrowserRouter, type RouteObject } from 'react-router-dom';
 
 import { AppShell } from '@/app/layout';
-import { AnonymousRoute, AuthenticatedRoute } from '@/features/auth';
+import { AnonymousRoute, AuthenticatedRoute, AuthLoadingPage } from '@/features/auth';
 import { LoginPage } from '@/pages/login';
 import { NotFoundPage } from '@/pages/not-found';
 
@@ -19,6 +19,7 @@ export const routes: RouteObject[] = [
   },
   {
     element: <AuthenticatedRoute />,
+    hydrateFallbackElement: <AuthLoadingPage />,
     children: [
       {
         element: <EntityActionsRoute />,

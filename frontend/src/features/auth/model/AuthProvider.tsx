@@ -1,20 +1,16 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import {
-  getCurrentUser,
-  login,
-  type CurrentUserDto,
-} from '../api';
+import { getCurrentUser, login, type CurrentUserDto } from "../api";
 import {
   AuthContext,
   type AuthContextValue,
   type AuthStatus,
   type AuthUser,
   type SignInCredentials,
-} from './auth-context';
+} from "./auth-context";
 
-const accessTokenStorageKey = 'featurewise.accessToken';
+const accessTokenStorageKey = "featurewise.accessToken";
 
 interface AuthProviderProps {
   readonly children: ReactNode;
@@ -47,7 +43,6 @@ function removeStoredAccessToken(): void {
 function toAuthUser(user: CurrentUserDto): AuthUser {
   return {
     organizationKey: user.organizationKey,
-    projectKey: user.projectKey,
     userKey: user.userKey,
     username: user.username,
   };
@@ -57,12 +52,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const queryClient = useQueryClient();
   const [accessToken, setAccessToken] = useState(readStoredAccessToken);
   const [status, setStatus] = useState<AuthStatus>(() =>
-    accessToken ? 'initializing' : 'anonymous',
+    accessToken ? "initializing" : "anonymous",
   );
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    if (!accessToken || status !== 'initializing') {
+    if (!accessToken || status !== "initializing") {
       return;
     }
 
@@ -75,7 +70,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         setUser(toAuthUser(currentUser));
-        setStatus('authenticated');
+        setStatus("authenticated");
       })
       .catch(() => {
         if (!active) {
@@ -86,7 +81,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         queryClient.clear();
         setAccessToken(null);
         setUser(null);
-        setStatus('anonymous');
+        setStatus("anonymous");
       });
 
     return () => {
@@ -105,14 +100,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         storeAccessToken(response.accessToken);
         setAccessToken(response.accessToken);
         setUser(toAuthUser(response.user));
-        setStatus('authenticated');
+        setStatus("authenticated");
       },
       signOut() {
         removeStoredAccessToken();
         queryClient.clear();
         setAccessToken(null);
         setUser(null);
-        setStatus('anonymous');
+        setStatus("anonymous");
       },
     }),
     [accessToken, queryClient, status, user],
