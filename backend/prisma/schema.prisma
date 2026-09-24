@@ -13,20 +13,7 @@ enum AssetType {
 
 enum StorageObjectStatus {
   pending_upload
-  processing
   ready
-  failed
-}
-
-enum AnalysisRunStatus {
-  queued
-  preparing_context
-  analyzing
-  validating_output
-  repairing_output
-  verifying_findings
-  persisting
-  completed
   failed
 }
 
@@ -37,38 +24,19 @@ enum FindingReviewDecision {
   deferred
 }
 
-enum LlmCallPurpose {
-  candidate_analysis
-  finding_verification
-  schema_repair
-}
-
-enum LlmCallOutcome {
-  success
-  error
-}
-
-enum RepositoryConnectionStatus {
-  connected
-  inaccessible
-  rate_limited
-}
-
-enum GitHubConnectionAttemptStatus {
-  pending
-  verifying
-  verified
-  consumed
-  failed
-  expired
+enum ReportSourceKind {
+  attachment
+  local_code
+  mcp
+  reference
 }
 
 model Organization {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @map("organization_id") @db.Uuid
-  publicNumber Int       @unique(map: "organization_public_number_key") @default(dbgenerated("nextval('organization_public_number_seq'::regclass)")) @map("public_number")
+  publicNumber Int       @unique(map: "organization_public_number_key") @default(autoincrement()) @map("public_number")
   name         String
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   projects     Project[]
   users        User[]
 
@@ -77,299 +45,208 @@ model Organization {
 
 model User {
   id             String          @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
-  publicNumber   Int             @unique(map: "user_public_number_key") @default(dbgenerated("nextval('user_public_number_seq'::regclass)")) @map("public_number")
+  publicNumber   Int             @unique(map: "user_public_number_key") @default(autoincrement()) @map("public_number")
   organizationId String          @unique @map("organization_id") @db.Uuid
   username       String          @unique
   passwordHash   String          @map("password_hash")
   isActive       Boolean         @default(true) @map("is_active")
   createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  analysisRuns   AnalysisRun[]
+  reviewReports  ReviewReport[]
   features       Feature[]
   findingReviews FindingReview[]
   storageObjects StorageObject[]
-  githubConnectionAttempts GitHubConnectionAttempt[]
 
   @@map("user")
 }
 
 model Project {
-  id             String          @id @default(dbgenerated("gen_random_uuid()")) @map("project_id") @db.Uuid
-  publicNumber   Int             @unique(map: "project_public_number_key") @default(dbgenerated("nextval('project_public_number_seq'::regclass)")) @map("public_number")
-  organizationId String          @unique @map("organization_id") @db.Uuid
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @map("project_id") @db.Uuid
+  publicNumber   Int          @unique(map: "project_public_number_key") @default(autoincrement()) @map("public_number")
+  organizationId String       @map("organization_id") @db.Uuid
   name           String
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  context        ProjectContext?
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   features       Feature[]
-  repositoryConnection ProjectRepositoryConnection?
-  githubConnectionAttempts GitHubConnectionAttempt[]
 
+  @@index([organizationId])
   @@map("project")
 }
 
-model ProjectContext {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @map("project_context_id") @db.Uuid
-  publicNumber Int      @unique(map: "project_context_public_number_key") @default(dbgenerated("nextval('project_context_public_number_seq'::regclass)")) @map("public_number")
-  projectId    String   @unique @map("project_id") @db.Uuid
-  content      String   @default("")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@map("project_context")
-}
-
 model Feature {
-  id                   String           @id @default(dbgenerated("gen_random_uuid()")) @map("feature_id") @db.Uuid
-  publicNumber         Int              @unique(map: "feature_public_number_key") @default(dbgenerated("nextval('feature_public_number_seq'::regclass)")) @map("public_number")
-  projectId            String           @map("project_id") @db.Uuid
-  title                String
-  specificationContent String           @default("") @map("specification_content")
-  createdById          String           @map("created_by") @db.Uuid
-  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt            DateTime?        @map("deleted_at") @db.Timestamptz(6)
-  analysisRuns         AnalysisRun[]
-  contextArtifact      ContextArtifact?
-  createdBy            User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  project              Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  repositoryContext    FeatureRepositoryContext?
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @map("feature_id") @db.Uuid
+  publicNumber Int       @unique(map: "feature_public_number_key") @default(autoincrement()) @map("public_number")
+  projectId    String    @map("project_id") @db.Uuid
+  title        String
+  createdById  String    @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy    User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
-  @@index([projectId])
+  reviewReports  ReviewReport[]
+  storageObjects StorageObject[]
+
   @@unique([id, projectId], map: "feature_id_project_id_key")
+  @@index([projectId])
   @@index([createdById])
   @@map("feature")
 }
 
-model ProjectRepositoryConnection {
-  id                    String                     @id @default(dbgenerated("gen_random_uuid()")) @map("project_repository_connection_id") @db.Uuid
-  publicNumber          Int                        @unique(map: "project_repository_connection_public_number_key") @default(dbgenerated("nextval('project_repository_connection_public_number_seq'::regclass)")) @map("public_number")
-  projectId             String                     @unique @map("project_id") @db.Uuid
-  installationId        BigInt                     @map("installation_id")
-  repositoryId          BigInt                     @map("repository_id")
-  owner                 String
-  name                  String
-  fullName              String                     @map("full_name")
-  private               Boolean
-  defaultBranch         String                     @map("default_branch")
-  baseBranch            String                     @map("base_branch")
-  configurationVersion Int                        @default(1) @map("configuration_version")
-  status                RepositoryConnectionStatus @default(connected)
-  lastCheckedAt         DateTime?                  @map("last_checked_at") @db.Timestamptz(6)
-  rateLimitResetAt      DateTime?                  @map("rate_limit_reset_at") @db.Timestamptz(6)
-  lastErrorCode         String?                    @map("last_error_code")
-  lastErrorMessage      String?                    @map("last_error_message")
-  createdAt             DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
-  project               Project                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  featureContexts       FeatureRepositoryContext[]
-
-  @@unique([id, projectId], map: "project_repository_connection_id_project_id_key")
-  @@index([installationId])
-  @@map("project_repository_connection")
-}
-
-model FeatureRepositoryContext {
-  id                   String                          @id @default(dbgenerated("gen_random_uuid()")) @map("feature_repository_context_id") @db.Uuid
-  featureId            String                          @unique @map("feature_id") @db.Uuid
-  projectId            String                          @map("project_id") @db.Uuid
-  connectionId         String                          @map("connection_id") @db.Uuid
-  branchOverride       String?                         @map("branch_override")
-  createdAt            DateTime                        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime                        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  feature              Feature                         @relation(fields: [featureId, projectId], references: [id, projectId], onDelete: Cascade)
-  connection           ProjectRepositoryConnection     @relation(fields: [connectionId, projectId], references: [id, projectId], onDelete: Cascade)
-  selectedFiles        FeatureRepositorySelectedFile[]
-
-  @@index([connectionId])
-  @@index([projectId])
-  @@unique([featureId, projectId], map: "feature_repository_context_feature_project_key")
-  @@map("feature_repository_context")
-}
-
-model FeatureRepositorySelectedFile {
-  id                         String                   @id @default(dbgenerated("gen_random_uuid()")) @map("feature_repository_selected_file_id") @db.Uuid
-  featureRepositoryContextId String                   @map("feature_repository_context_id") @db.Uuid
-  path                       String
-  createdAt                  DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  context                    FeatureRepositoryContext @relation(fields: [featureRepositoryContextId], references: [id], onDelete: Cascade)
-
-  @@unique([featureRepositoryContextId, path], map: "feature_repository_selected_file_context_path_key")
-  @@map("feature_repository_selected_file")
-}
-
-model GitHubConnectionAttempt {
-  id                     String                        @id @default(dbgenerated("gen_random_uuid()")) @map("github_connection_attempt_id") @db.Uuid
-  projectId              String                        @map("project_id") @db.Uuid
-  userId                 String                        @map("user_id") @db.Uuid
-  stateDigest            Bytes                         @unique @map("state_digest") @db.ByteA
-  status                 GitHubConnectionAttemptStatus @default(pending)
-  expiresAt              DateTime                      @map("expires_at") @db.Timestamptz(6)
-  verifiedInstallationId BigInt?                       @map("verified_installation_id")
-  verifiedInstallations  Json?                         @map("verified_installations")
-  verifiedAt             DateTime?                     @map("verified_at") @db.Timestamptz(6)
-  consumedAt             DateTime?                     @map("consumed_at") @db.Timestamptz(6)
-  failedAt               DateTime?                     @map("failed_at") @db.Timestamptz(6)
-  createdAt              DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime                      @updatedAt @map("updated_at") @db.Timestamptz(6)
-  project                Project                       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user                   User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([projectId, userId, status])
-  @@map("github_connection_attempt")
-}
-
-model ContextArtifact {
-  id             String          @id @default(dbgenerated("gen_random_uuid()")) @map("context_artifact_id") @db.Uuid
-  publicNumber   Int             @unique(map: "context_artifact_public_number_key") @default(dbgenerated("nextval('context_artifact_public_number_seq'::regclass)")) @map("public_number")
-  featureId      String          @unique @map("feature_id") @db.Uuid
-  content        String          @default("")
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  feature        Feature         @relation(fields: [featureId], references: [id], onDelete: Cascade)
-  storageObjects StorageObject[]
-
-  @@map("context_artifact")
-}
-
 model StorageObject {
-  id                     String              @id @default(dbgenerated("gen_random_uuid()")) @map("storage_object_id") @db.Uuid
-  publicNumber           Int                 @unique(map: "storage_object_public_number_key") @default(dbgenerated("nextval('storage_object_public_number_seq'::regclass)")) @map("public_number")
-  contextArtifactId      String              @map("context_artifact_id") @db.Uuid
-  createdById            String              @map("created_by") @db.Uuid
-  status                 StorageObjectStatus @default(pending_upload)
-  selected               Boolean             @default(true)
-  uploadKey              String              @unique @map("upload_key")
-  uploadVersionId        String?             @map("upload_version_id")
-  s3Key                  String              @unique @map("s3_key")
-  s3VersionId            String?             @map("s3_version_id")
-  etag                   String?
-  assetType              AssetType           @map("asset_type")
-  mimeType               String              @map("mime_type")
-  sizeBytes              BigInt              @map("size_bytes")
-  originalFilename       String              @map("original_filename")
-  checksumSha256         String              @map("checksum_sha256")
-  preparedS3Key          String?             @unique @map("prepared_s3_key")
-  preparedS3VersionId    String?             @map("prepared_s3_version_id")
-  preparedMimeType       String?             @map("prepared_mime_type")
-  preparedSizeBytes      BigInt?             @map("prepared_size_bytes")
-  preparedChecksumSha256 String?             @map("prepared_checksum_sha256")
-  preparationVersion     String?             @map("preparation_version")
-  failureCode            String?             @map("failure_code")
-  failureMessage         String?             @map("failure_message")
-  uploadExpiresAt        DateTime            @map("upload_expires_at") @db.Timestamptz(6)
-  confirmedAt            DateTime?           @map("confirmed_at") @db.Timestamptz(6)
-  readyAt                DateTime?           @map("ready_at") @db.Timestamptz(6)
-  failedAt               DateTime?           @map("failed_at") @db.Timestamptz(6)
-  unselectedAt           DateTime?           @map("unselected_at") @db.Timestamptz(6)
-  firstUsedAt            DateTime?           @map("first_used_at") @db.Timestamptz(6)
-  purgeRequestedAt       DateTime?           @map("purge_requested_at") @db.Timestamptz(6)
-  createdAt              DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
-  contextArtifact        ContextArtifact     @relation(fields: [contextArtifactId], references: [id], onDelete: Restrict)
-  createdBy              User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  id               String              @id @default(dbgenerated("gen_random_uuid()")) @map("storage_object_id") @db.Uuid
+  publicNumber     Int                 @unique(map: "storage_object_public_number_key") @default(autoincrement()) @map("public_number")
+  featureId        String              @map("feature_id") @db.Uuid
+  createdById      String              @map("created_by") @db.Uuid
+  status           StorageObjectStatus @default(pending_upload)
+  uploadKey        String              @unique @map("upload_key")
+  uploadVersionId  String?             @map("upload_version_id")
+  s3Key            String              @unique @map("s3_key")
+  s3VersionId      String?             @map("s3_version_id")
+  etag             String?
+  assetType        AssetType           @map("asset_type")
+  mimeType         String              @map("mime_type")
+  sizeBytes        BigInt              @map("size_bytes")
+  originalFilename String              @map("original_filename")
+  checksumSha256   String              @map("checksum_sha256")
+  failureCode      String?             @map("failure_code")
+  failureMessage   String?             @map("failure_message")
+  uploadExpiresAt  DateTime            @map("upload_expires_at") @db.Timestamptz(6)
+  confirmedAt      DateTime?           @map("confirmed_at") @db.Timestamptz(6)
+  readyAt          DateTime?           @map("ready_at") @db.Timestamptz(6)
+  failedAt         DateTime?           @map("failed_at") @db.Timestamptz(6)
+  firstUsedAt      DateTime?           @map("first_used_at") @db.Timestamptz(6)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy        User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
-  @@index([contextArtifactId, status, selected])
-  @@index([status, uploadExpiresAt])
+  feature     Feature            @relation(fields: [featureId], references: [id], onDelete: Restrict)
+  attachments ReportAttachment[]
+
+  @@unique([id, featureId])
+  @@index([featureId])
+  @@index([status, uploadExpiresAt], map: "storage_object_status_upload_expiry_idx")
   @@index([status, failedAt])
-  @@index([purgeRequestedAt])
   @@index([createdById])
   @@map("storage_object")
 }
 
-/// The migration owns the partial unique index that permits at most one
-/// non-terminal AnalysisRun per Feature and the immutable snapshot trigger.
-model AnalysisRun {
-  id                      String            @id @default(dbgenerated("gen_random_uuid()")) @map("analysis_run_id") @db.Uuid
-  publicNumber            Int               @unique(map: "analysis_run_public_number_key") @default(dbgenerated("nextval('analysis_run_public_number_seq'::regclass)")) @map("public_number")
-  featureId               String            @map("feature_id") @db.Uuid
-  status                  AnalysisRunStatus
-  analyzerVersion         String            @map("analyzer_version")
-  promptVersion           String            @map("prompt_version")
-  schemaVersion           String            @map("schema_version")
-  analysisSettings        Json              @map("analysis_settings")
-  inputSnapshot           Json              @map("input_snapshot")
-  preparedContextSnapshot Json?             @map("prepared_context_snapshot")
-  errorMessage            String?           @map("error_message")
-  createdById             String            @map("created_by") @db.Uuid
-  createdAt               DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  startedAt               DateTime?         @map("started_at") @db.Timestamptz(6)
-  finishedAt              DateTime?         @map("finished_at") @db.Timestamptz(6)
-  updatedAt               DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdBy               User              @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  feature                 Feature           @relation(fields: [featureId], references: [id], onDelete: Restrict)
-  findings                AnalysisFinding[]
-  llmCallLogs             LlmCallLog[]
+/// Immutable report produced outside the backend; no execution lifecycle.
+model ReviewReport {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @map("review_report_id") @db.Uuid
+  publicNumber  Int                @unique @default(autoincrement()) @map("public_number")
+  featureId     String             @map("feature_id") @db.Uuid
+  content       String
+  formatVersion String             @map("format_version")
+  savedById     String             @map("saved_by") @db.Uuid
+  producedAt    DateTime           @map("produced_at") @db.Timestamptz(6)
+  savedAt       DateTime           @default(now()) @map("saved_at") @db.Timestamptz(6)
+  feature       Feature            @relation(fields: [featureId], references: [id], onDelete: Restrict)
+  savedBy       User               @relation(fields: [savedById], references: [id], onDelete: Restrict)
+  findings      ReviewFinding[]
+  sources       ReportSource[]
+  attachments   ReportAttachment[]
 
-  @@index([featureId])
-  @@index([createdById])
-  @@map("analysis_run")
+  @@unique([id, featureId])
+  @@index([featureId, savedAt])
+  @@index([savedById])
+  @@map("review_report")
 }
 
-/// AnalysisFinding rows are immutable after insertion through a
-/// migration-owned PostgreSQL trigger.
-model AnalysisFinding {
-  id                   String          @id @default(dbgenerated("gen_random_uuid()")) @map("analysis_finding_id") @db.Uuid
-  publicNumber         Int             @unique(map: "analysis_finding_public_number_key") @default(dbgenerated("nextval('analysis_finding_public_number_seq'::regclass)")) @map("public_number")
-  analysisRunId        String          @map("analysis_run_id") @db.Uuid
+/// Assertions and producer-supplied verification metadata are immutable.
+model ReviewFinding {
+  id                   String            @id @default(dbgenerated("gen_random_uuid()")) @map("review_finding_id") @db.Uuid
+  publicNumber         Int               @unique @default(autoincrement()) @map("public_number")
+  reportId             String            @map("report_id") @db.Uuid
   position             Int
-  category             String
-  severity             String
   title                String
   description          String
-  whyItMatters         String          @map("why_it_matters")
-  evidence             Json
-  suggestedResolutions Json            @map("suggested_resolutions")
-  verificationMetadata Json            @map("verification_metadata")
-  createdAt            DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  analysisRun          AnalysisRun     @relation(fields: [analysisRunId], references: [id], onDelete: Restrict)
+  whyItMatters         String            @map("why_it_matters")
+  category             String
+  severity             String
+  suggestedResolutions Json              @map("suggested_resolutions")
+  verificationMetadata Json?             @map("verification_metadata")
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  report               ReviewReport      @relation(fields: [reportId], references: [id], onDelete: Restrict)
+  evidence             FindingEvidence[]
   reviews              FindingReview[]
 
-  @@unique([analysisRunId, position], map: "analysis_finding_run_position_key")
-  @@index([analysisRunId])
-  @@map("analysis_finding")
+  @@unique([id, reportId])
+  @@unique([reportId, position])
+  @@map("review_finding")
 }
 
-/// FindingReview is append-only through a migration-owned PostgreSQL trigger.
+/// A report can reference only originals owned by its feature.
+model ReportAttachment {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @map("report_attachment_id") @db.Uuid
+  publicNumber    Int            @unique @default(autoincrement()) @map("public_number")
+  reportId        String         @map("report_id") @db.Uuid
+  featureId       String         @map("feature_id") @db.Uuid
+  storageObjectId String         @map("storage_object_id") @db.Uuid
+  report          ReviewReport   @relation(fields: [reportId, featureId], references: [id, featureId], onDelete: Restrict)
+  storageObject   StorageObject  @relation(fields: [storageObjectId, featureId], references: [id, featureId], onDelete: Restrict)
+  sources         ReportSource[]
+
+  @@unique([id, reportId])
+  @@unique([reportId, storageObjectId])
+  @@index([storageObjectId, featureId])
+  @@map("report_attachment")
+}
+
+/// Sources belong to one report. MCP sources store references, never copied content.
+model ReportSource {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @map("report_source_id") @db.Uuid
+  publicNumber Int               @unique @default(autoincrement()) @map("public_number")
+  reportId     String            @map("report_id") @db.Uuid
+  kind         ReportSourceKind
+  title        String
+  reference    String?
+  relativePath String?           @map("relative_path")
+  excerpt      String?
+  revision     String?
+  attachmentId String?           @map("attachment_id") @db.Uuid
+  report       ReviewReport      @relation(fields: [reportId], references: [id], onDelete: Restrict)
+  attachment   ReportAttachment? @relation(fields: [attachmentId, reportId], references: [id, reportId], onDelete: Restrict)
+  evidence     FindingEvidence[]
+
+  @@unique([id, reportId])
+  @@index([reportId])
+  @@index([attachmentId, reportId])
+  @@map("report_source")
+}
+
+model FindingEvidence {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @map("finding_evidence_id") @db.Uuid
+  publicNumber Int           @unique @default(autoincrement()) @map("public_number")
+  reportId     String        @map("report_id") @db.Uuid
+  findingId    String        @map("finding_id") @db.Uuid
+  sourceId     String        @map("source_id") @db.Uuid
+  locator      String?
+  excerpt      String?
+  finding      ReviewFinding @relation(fields: [findingId, reportId], references: [id, reportId], onDelete: Restrict)
+  source       ReportSource  @relation(fields: [sourceId, reportId], references: [id, reportId], onDelete: Restrict)
+
+  @@index([findingId, reportId])
+  @@index([sourceId, reportId])
+  @@map("finding_evidence")
+}
+
+/// Append-only. Current disposition orders by createdAt, then publicNumber.
 model FindingReview {
   id           String                @id @default(dbgenerated("gen_random_uuid()")) @map("finding_review_id") @db.Uuid
-  publicNumber Int                   @unique(map: "finding_review_public_number_key") @default(dbgenerated("nextval('finding_review_public_number_seq'::regclass)")) @map("public_number")
+  publicNumber Int                   @unique @default(autoincrement()) @map("public_number")
   findingId    String                @map("finding_id") @db.Uuid
   decision     FindingReviewDecision
   reason       String?
   createdById  String                @map("created_by") @db.Uuid
   createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   createdBy    User                  @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  finding      AnalysisFinding       @relation(fields: [findingId], references: [id], onDelete: Restrict)
+  finding      ReviewFinding         @relation(fields: [findingId], references: [id], onDelete: Restrict)
 
-  @@index([findingId])
+  @@index([findingId, createdAt, publicNumber])
   @@index([createdById])
   @@map("finding_review")
-}
-
-model LlmCallLog {
-  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @map("llm_call_id") @db.Uuid
-  publicNumber        Int            @unique(map: "llm_call_log_public_number_key") @default(dbgenerated("nextval('llm_call_log_public_number_seq'::regclass)")) @map("public_number")
-  analysisRunId       String         @map("analysis_run_id") @db.Uuid
-  purpose             LlmCallPurpose
-  attempt             Int
-  provider            String
-  model               String
-  promptVersion       String         @map("prompt_version")
-  schemaVersion       String         @map("schema_version")
-  inputTokens         Int?           @map("input_tokens")
-  outputTokens        Int?           @map("output_tokens")
-  latencyMs           Int?           @map("latency_ms")
-  estimatedCostMicros BigInt?        @map("estimated_cost_micros")
-  outcome             LlmCallOutcome
-  errorMessage        String?        @map("error_message")
-  rawResponse         Json?          @map("raw_response")
-  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  analysisRun         AnalysisRun    @relation(fields: [analysisRunId], references: [id], onDelete: Restrict)
-
-  @@index([analysisRunId])
-  @@map("llm_call_log")
 }

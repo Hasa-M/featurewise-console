@@ -12,7 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint": "eslint \"{src,apps,libs,test,harness,prisma,scripts}/**/*.ts\"",
     "auth:hash-password": "node scripts/hash-password.mjs",
     "prisma:generate": "prisma generate",
     "prisma:seed": "prisma db seed",
@@ -29,13 +29,11 @@
     "harness:down": "node -r ts-node/register harness/entry.ts down",
     "harness:studio": "node -r ts-node/register harness/entry.ts studio",
     "harness:inspect": "node -r ts-node/register harness/entry.ts inspect",
-    "harness:capture": "node -r ts-node/register harness/entry.ts capture",
-    "harness:compare": "node -r ts-node/register harness/entry.ts compare",
     "harness:test": "node -r ts-node/register harness/entry.ts test",
     "harness:test:postgres": "node -r ts-node/register harness/entry.ts test:postgres",
     "harness:test:http": "node -r ts-node/register harness/entry.ts test:http",
-    "harness:live-check": "node -r ts-node/register harness/entry.ts live-check",
-    "harness:typecheck": "tsc -p harness/tsconfig.json --noEmit"
+    "harness:typecheck": "tsc -p harness/tsconfig.json --noEmit",
+    "storage:export-retired": "ts-node scripts/export-retired-derivatives.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1108.0",
@@ -47,18 +45,14 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.4.7",
-    "@octokit/app": "^16.1.4",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "argon2": "^0.44.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
-    "file-type": "^22.0.1",
-    "pdf-lib": "^1.17.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "sharp": "^0.35.3"
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

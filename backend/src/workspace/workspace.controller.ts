@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -7,9 +15,8 @@ import {
   ParsePublicKeyPipe,
   type ParsedPublicNumber,
 } from '../common/public-identifiers';
-import type { ProjectContextResponseDto } from './dto/project-context-response.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
-import { UpdateProjectContextDto } from './dto/update-project-context.dto';
+import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { WorkspaceService } from './workspace.service';
 
@@ -68,28 +75,16 @@ export class WorkspaceController {
     );
   }
 
-  @Get('projects/:projectKey/context')
-  async getProjectContext(
+  @Post('organizations/:organizationKey/projects')
+  async createProject(
     @CurrentUser() currentUser: CurrentUserContext,
-    @Param('projectKey', new ParsePublicKeyPipe('project'))
-    projectPublicNumber: ParsedPublicNumber,
-  ): Promise<ProjectContextResponseDto> {
-    return this.workspaceService.getProjectContext(
+    @Param('organizationKey', new ParsePublicKeyPipe('organization'))
+    organizationPublicNumber: ParsedPublicNumber,
+    @Body() dto: CreateProjectDto,
+  ) {
+    return this.workspaceService.createProject(
       currentUser,
-      projectPublicNumber.value,
-    );
-  }
-
-  @Patch('projects/:projectKey/context')
-  async updateProjectContext(
-    @CurrentUser() currentUser: CurrentUserContext,
-    @Param('projectKey', new ParsePublicKeyPipe('project'))
-    projectPublicNumber: ParsedPublicNumber,
-    @Body() dto: UpdateProjectContextDto,
-  ): Promise<ProjectContextResponseDto> {
-    return this.workspaceService.updateProjectContext(
-      currentUser,
-      projectPublicNumber.value,
+      organizationPublicNumber.value,
       dto,
     );
   }

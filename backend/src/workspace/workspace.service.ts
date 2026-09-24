@@ -1,12 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
 
 import type { CurrentUserContext } from '../auth/current-user-context';
 import { formatPublicKey } from '../common/public-identifiers';
 import { PrismaService } from '../database/prisma.service';
-import type { ProjectContextResponseDto } from './dto/project-context-response.dto';
 import type { UpdateOrganizationDto } from './dto/update-organization.dto';
-import type { UpdateProjectContextDto } from './dto/update-project-context.dto';
+import type { CreateProjectDto } from './dto/create-project.dto';
 import type { UpdateProjectDto } from './dto/update-project.dto';
 
 export interface ProjectRecord {
@@ -24,23 +22,6 @@ interface OrganizationRecord {
   readonly name: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
-}
-
-interface ProjectContextRecord {
-  readonly publicNumber: number;
-  readonly projectId: string;
-  readonly content: string;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
-}
-
-export interface AnalysisProjectInputRecord {
-  readonly id: string;
-  readonly publicNumber: number;
-  readonly context: {
-    readonly publicNumber: number;
-    readonly content: string;
-  } | null;
 }
 
 @Injectable()
@@ -131,7 +112,6 @@ export class WorkspaceService {
     const project = await this.prismaService.project.findFirst({
       where: {
         organizationId: currentUser.organizationId,
-        id: currentUser.projectId,
         publicNumber: projectPublicNumber,
       },
     });
@@ -143,77 +123,19 @@ export class WorkspaceService {
     return project;
   }
 
-  async getAnalysisProjectInput(
-    transaction: Prisma.TransactionClient,
+  async createProject(
     currentUser: CurrentUserContext,
-    projectPublicNumber: number,
-  ): Promise<AnalysisProjectInputRecord> {
-    const project = await transaction.project.findFirst({
-      where: {
-        organizationId: currentUser.organizationId,
-        id: currentUser.projectId,
-        publicNumber: projectPublicNumber,
-      },
-      select: {
-        id: true,
-        publicNumber: true,
-        context: {
-          select: {
-            publicNumber: true,
-            content: true,
-          },
-        },
-      },
-    });
-
-    if (project === null) {
-      throw new NotFoundException('Project not found');
-    }
-
-    return project;
-  }
-
-  async getProjectContext(
-    currentUser: CurrentUserContext,
-    projectPublicNumber: number,
-  ): Promise<ProjectContextResponseDto> {
-    const project = await this.getProjectRecord(
+    organizationPublicNumber: number,
+    dto: CreateProjectDto,
+  ) {
+    const organization = await this.getOrganizationRecord(
       currentUser,
-      projectPublicNumber,
+      organizationPublicNumber,
     );
-    const projectContext = await this.prismaService.projectContext.upsert({
-      where: { projectId: project.id },
-      create: {
-        projectId: project.id,
-        content: '',
-      },
-      update: {},
+    const project = await this.prismaService.project.create({
+      data: { organizationId: organization.id, name: dto.name.trim() },
     });
-
-    return this.toProjectContextResponse(projectContext, project.publicNumber);
-  }
-
-  async updateProjectContext(
-    currentUser: CurrentUserContext,
-    projectPublicNumber: number,
-    dto: UpdateProjectContextDto,
-  ): Promise<ProjectContextResponseDto> {
-    const project = await this.getProjectRecord(
-      currentUser,
-      projectPublicNumber,
-    );
-    const projectContext = await this.prismaService.projectContext.upsert({
-      where: { projectId: project.id },
-      create: {
-        projectId: project.id,
-        content: dto.content,
-      },
-      update: {
-        content: dto.content,
-      },
-    });
-
-    return this.toProjectContextResponse(projectContext, project.publicNumber);
+    return this.toProjectResponse(project, currentUser.organizationKey);
   }
 
   async updateProject(
@@ -272,19 +194,6 @@ export class WorkspaceService {
       name: project.name,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
-    };
-  }
-
-  private toProjectContextResponse(
-    projectContext: ProjectContextRecord,
-    projectPublicNumber: number,
-  ): ProjectContextResponseDto {
-    return {
-      publicKey: formatPublicKey('projectContext', projectContext.publicNumber),
-      projectKey: formatPublicKey('project', projectPublicNumber),
-      content: projectContext.content,
-      createdAt: projectContext.createdAt,
-      updatedAt: projectContext.updatedAt,
     };
   }
 }

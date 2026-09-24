@@ -1,32 +1,17 @@
-# ADR-0010: Build Phase 1 as a Local-First Prototype
+# ADR-0010: Keep a local-first prototype
 
-Date: 2026-06-02
+Date: 2026-09-24
 
 Status: accepted
 
-Amended by: [ADR-0030](ADR-0030-specification-analysis-core-domain.md)
-
-> The local-first prototype decision remains accepted. References below to
-> generation and spec artifacts now mean analysis runs, evidence-backed
-> findings, and their supporting context under ADR-0030.
-
 ## Context
 
-The first MVP is mainly intended for local development, learning, demos, and operator-assisted client conversations.
-
-A production deployment would require additional concerns such as environment hardening, data isolation, operational monitoring, and deployment reliability.
+Featurewise is a solo-developer prototype for local development and demonstrations.
 
 ## Decision
 
-Phase 1 will be built as a local-first prototype.
-
-The application may use online external services such as the LLM provider and object storage, but the product itself will not be deployed as a public production application in phase 1.
-
-A minimal `User` table may exist to prepare the domain model for future ownership/audit needs and the actual auth.
+Run the Console, NestJS API and PostgreSQL locally. Private originals can remain in S3. This is not a public production deployment. Keep authentication, but defer teams, roles, invitations, password reset and 2FA.
 
 ## Consequences
 
-- The MVP can focus on product workflow, backend architecture, LLM generation, context handling, and spec artifacts.
-- Permissions, teams, and production deployment are deferred.
-- The app must not be treated as secure for real multi-user production usage.
-- Any real client data must be handled carefully and only with explicit permission.
+Integration tests use a dedicated local database. Cloud infrastructure changes and public deployment require separate scope.

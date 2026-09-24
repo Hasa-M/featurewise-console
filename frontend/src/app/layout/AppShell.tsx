@@ -370,6 +370,10 @@ function ReadyShell({
     () => new Set(),
   );
   const location = useLocation();
+  const activeFeatureProject = matchPath(
+    '/projects/:projectKey/features/:featureKey',
+    location.pathname,
+  )?.params.projectKey;
   const queryClient = useQueryClient();
   const pageHeaderProps = useRegisteredPageHeader();
   const { openEdit: openEditProject } = useProjectActions();
@@ -386,7 +390,9 @@ function ReadyShell({
         accessToken,
         project.publicKey,
       ),
-      enabled: expandedProjects.has(project.publicKey),
+      enabled:
+        expandedProjects.has(project.publicKey) ||
+        project.publicKey === activeFeatureProject,
     })),
   });
 
@@ -433,6 +439,7 @@ function ReadyShell({
             },
           ],
           id: `project:${project.publicKey}`,
+          defaultOpen: project.publicKey === activeFeatureProject,
           label: project.name,
           menuContent: {
             'aria-label': `Open ${project.name} menu`,
@@ -478,6 +485,7 @@ function ReadyShell({
       },
     ];
   }, [
+    activeFeatureProject,
     featureQueries,
     featureActions,
     openEditProject,

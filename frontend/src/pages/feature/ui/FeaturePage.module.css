@@ -16,6 +16,7 @@
   min-height: 12rem;
   display: grid;
   place-items: center;
+  gap: var(--space-3);
   padding: var(--space-6);
   border-radius: var(--radius-card);
   color: var(--text-muted);
@@ -27,14 +28,4 @@
 .placeholder h2,
 .placeholder p {
   margin: 0;
-}
-
-.placeholder section {
-  display: grid;
-  justify-items: center;
-  gap: var(--space-3);
-}
-
-.contentPanel {
-  width: 100%;
 }

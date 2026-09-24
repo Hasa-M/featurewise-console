@@ -4,65 +4,27 @@ import {
   FolderKanban,
   Pencil,
   Trash2,
-} from 'lucide-react';
-import { useEffect, useMemo } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+} from "lucide-react";
+import { useMemo } from "react";
+import { useParams } from "react-router-dom";
 
-import { useAuth } from '@/features/auth';
-import { FeatureContextPanel } from '@/features/context';
+import { useAuth } from "@/features/auth";
 import {
-  FeatureSpecificationPanel,
   getFeaturePath,
   useFeature,
   useFeatureActions,
-} from '@/features/features';
-import { FeatureRepositoryPanel } from '@/features/repository-context';
-import { getProjectPath, useProject } from '@/features/workspace';
-import { ApiError } from '@/shared/api';
-import { usePageHeaderRegistration } from '@/shared/model';
-import { Breadcrumb } from '@/shared/ui/breadcrumb';
-import { Button } from '@/shared/ui/button';
-import { Tabs, type TabsItems } from '@/shared/ui/tabs';
+} from "@/features/features";
+import { getProjectPath, useProject } from "@/features/workspace";
+import { ApiError } from "@/shared/api";
+import { usePageHeaderRegistration } from "@/shared/model";
+import { Breadcrumb } from "@/shared/ui/breadcrumb";
+import { Button } from "@/shared/ui/button";
 
-import styles from './FeaturePage.module.css';
-
-const FEATURE_TABS = [
-  {
-    id: 'specification',
-    label: 'Specification',
-    panelId: 'feature-specification-panel',
-    tabId: 'feature-specification-tab',
-  },
-  {
-    id: 'context',
-    label: 'Context',
-    panelId: 'feature-context-panel',
-    tabId: 'feature-context-tab',
-  },
-  {
-    id: 'repository',
-    label: 'Repository',
-    panelId: 'feature-repository-panel',
-    tabId: 'feature-repository-tab',
-  },
-  {
-    id: 'analyses',
-    label: 'Analyses',
-    panelId: 'feature-analyses-panel',
-    tabId: 'feature-analyses-tab',
-  },
-] as const satisfies TabsItems;
-
-type FeatureTabId = (typeof FEATURE_TABS)[number]['id'];
-
-function isFeatureTabId(value: string | null): value is FeatureTabId {
-  return FEATURE_TABS.some((tab) => tab.id === value);
-}
+import styles from "./FeaturePage.module.css";
 
 function isNotFound(error: unknown) {
   return (
-    error instanceof ApiError &&
-    (error.status === 400 || error.status === 404)
+    error instanceof ApiError && (error.status === 400 || error.status === 404)
   );
 }
 
@@ -82,11 +44,6 @@ function FeatureContent({
   const projectQuery = useProject(accessToken, organizationKey, projectKey);
   const featureQuery = useFeature(accessToken, projectKey, featureKey);
   const featureActions = useFeatureActions();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requestedTab = searchParams.get('tab');
-  const activeTab: FeatureTabId = isFeatureTabId(requestedTab)
-    ? requestedTab
-    : 'specification';
   const targetMismatch =
     featureQuery.isSuccess && featureQuery.data.projectKey !== projectKey;
   const notFound =
@@ -95,48 +52,45 @@ function FeatureContent({
     (featureQuery.isError && isNotFound(featureQuery.error));
   const pageHeader = useMemo(
     () => ({
-      actions: featureQuery.data && !targetMismatch ? (
-        <>
-          <Button
-            leadingIcon={<Pencil size={16} strokeWidth={1.75} />}
-            onClick={() => featureActions.openEdit(featureQuery.data)}
-            variant='secondary'
-          >
-            Edit feature
-          </Button>
-          <Button
-            leadingIcon={<Trash2 size={16} strokeWidth={1.75} />}
-            onClick={() => featureActions.openDelete(featureQuery.data)}
-            variant='danger'
-          >
-            Delete feature
-          </Button>
-        </>
-      ) : undefined,
+      actions:
+        featureQuery.data && !targetMismatch ? (
+          <>
+            <Button
+              leadingIcon={<Pencil size={16} strokeWidth={1.75} />}
+              onClick={() => featureActions.openEdit(featureQuery.data)}
+              variant="secondary"
+            >
+              Edit feature
+            </Button>
+            <Button
+              leadingIcon={<Trash2 size={16} strokeWidth={1.75} />}
+              onClick={() => featureActions.openDelete(featureQuery.data)}
+              variant="danger"
+            >
+              Delete feature
+            </Button>
+          </>
+        ) : undefined,
       breadcrumb: (
         <Breadcrumb
           items={[
             {
-              href: '/',
+              href: "/",
               icon: <FolderClosed size={14} strokeWidth={1.75} />,
-              kind: 'folder' as const,
-              label: 'Projects',
+              kind: "folder" as const,
+              label: "Projects",
             },
             {
-              href: getProjectPath(
-                projectQuery.data?.publicKey ?? projectKey,
-              ),
+              href: getProjectPath(projectQuery.data?.publicKey ?? projectKey),
               icon: <FolderKanban size={14} strokeWidth={1.75} />,
-              kind: 'item' as const,
-              label: projectQuery.data?.name ?? 'Project',
+              kind: "item" as const,
+              label: projectQuery.data?.name ?? "Project",
             },
             {
-              href: getProjectPath(
-                projectQuery.data?.publicKey ?? projectKey,
-              ),
+              href: getProjectPath(projectQuery.data?.publicKey ?? projectKey),
               icon: <FolderClosed size={14} strokeWidth={1.75} />,
-              kind: 'folder' as const,
-              label: 'Features',
+              kind: "folder" as const,
+              label: "Features",
             },
             {
               href: getFeaturePath(
@@ -144,18 +98,18 @@ function FeatureContent({
                 featureQuery.data?.publicKey ?? featureKey,
               ),
               icon: <FileText size={14} strokeWidth={1.75} />,
-              kind: 'item' as const,
+              kind: "item" as const,
               label: notFound
-                ? 'Feature not found'
-                : featureQuery.data?.title ?? 'Feature',
+                ? "Feature not found"
+                : (featureQuery.data?.title ?? "Feature"),
             },
           ]}
-          titleId='feature-title'
+          titleId="feature-title"
         />
       ),
       subtitle:
         featureQuery.data && !targetMismatch
-          ? 'Edit the feature specification, manage supporting context, and review analyses when available.'
+          ? "Review history for this feature will be available here."
           : undefined,
     }),
     [
@@ -170,14 +124,6 @@ function FeatureContent({
     ],
   );
   usePageHeaderRegistration(pageHeader);
-
-  useEffect(() => {
-    if (requestedTab === activeTab) return;
-
-    const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.set('tab', activeTab);
-    setSearchParams(nextSearchParams, { replace: true });
-  }, [activeTab, requestedTab, searchParams, setSearchParams]);
 
   if (projectQuery.isPending || featureQuery.isPending) {
     return <p className={styles.status}>Loading feature...</p>;
@@ -215,56 +161,16 @@ function FeatureContent({
     );
   }
 
-  const activeTabItem =
-    FEATURE_TABS.find((tab) => tab.id === activeTab) ?? FEATURE_TABS[0];
-
   return (
     <section className={styles.page} aria-labelledby="feature-title">
-      <Tabs
-        aria-label="Feature workspace"
-        items={FEATURE_TABS}
-        onValueChange={(value) => {
-          if (!isFeatureTabId(value)) return;
-
-          const nextSearchParams = new URLSearchParams(searchParams);
-          nextSearchParams.set('tab', value);
-          setSearchParams(nextSearchParams);
-        }}
-        value={activeTab}
-      />
-      <div
-        aria-labelledby={activeTabItem.tabId}
-        className={activeTab === 'analyses' ? styles.placeholder : styles.contentPanel}
-        id={activeTabItem.panelId}
-        role="tabpanel"
-        tabIndex={0}
-      >
-        {activeTab === 'specification' ? (
-          <FeatureSpecificationPanel
-            accessToken={accessToken}
-            feature={featureQuery.data}
-          />
-        ) : activeTab === 'context' ? (
-          <FeatureContextPanel
-            accessToken={accessToken}
-            featureKey={featureQuery.data.publicKey}
-          />
-        ) : activeTab === 'repository' ? (
-          <FeatureRepositoryPanel
-            accessToken={accessToken}
-            featureKey={featureQuery.data.publicKey}
-            projectKey={projectQuery.data.publicKey}
-          />
-        ) : (
-          <section aria-labelledby='feature-analyses-title'>
-            <p className='fw-overline'>Unavailable</p>
-            <h2 id='feature-analyses-title'>Analyses are unavailable</h2>
-            <p>
-              Analysis execution and evidence-backed findings are deferred and
-              are not available in the Console.
-            </p>
-          </section>
-        )}
+      <div className={styles.placeholder} role="status">
+        <p className="fw-overline">Unavailable</p>
+        <h2>Review history is not available yet</h2>
+        <p>
+          Reviews will be produced by a separate plugin in your environment.
+          Saving reports and browsing their history are not available in the
+          Console yet.
+        </p>
       </div>
     </section>
   );

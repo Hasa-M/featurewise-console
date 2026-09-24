@@ -1,33 +1,29 @@
-import { request } from '@/shared/api';
+import { request } from "@/shared/api";
 
 export interface FeatureDto {
   readonly createdAt: string;
   readonly createdByKey: string;
   readonly projectKey: string;
   readonly publicKey: string;
-  readonly specificationContent: string;
   readonly title: string;
   readonly updatedAt: string;
 }
 
 export interface CreateFeatureDto {
-  readonly specificationContent?: string;
   readonly title: string;
 }
 
 export interface UpdateFeatureDto {
-  readonly specificationContent?: string;
-  readonly title?: string;
+  readonly title: string;
 }
 
 export function getProjectFeatures(
   accessToken: string,
   projectKey: string,
 ): Promise<readonly FeatureDto[]> {
-  return request<readonly FeatureDto[]>(
-    `/projects/${projectKey}/features`,
-    { accessToken },
-  );
+  return request<readonly FeatureDto[]>(`/projects/${projectKey}/features`, {
+    accessToken,
+  });
 }
 
 export function getFeature(
@@ -35,10 +31,9 @@ export function getFeature(
   projectKey: string,
   featureKey: string,
 ): Promise<FeatureDto> {
-  return request<FeatureDto>(
-    `/projects/${projectKey}/features/${featureKey}`,
-    { accessToken },
-  );
+  return request<FeatureDto>(`/projects/${projectKey}/features/${featureKey}`, {
+    accessToken,
+  });
 }
 
 export function createFeature(
@@ -49,7 +44,7 @@ export function createFeature(
   return request<FeatureDto>(`/projects/${projectKey}/features`, {
     accessToken,
     body: input,
-    method: 'POST',
+    method: "POST",
   });
 }
 
@@ -61,7 +56,7 @@ export function updateFeature(
   return request<FeatureDto>(`/features/${featureKey}`, {
     accessToken,
     body: input,
-    method: 'PATCH',
+    method: "PATCH",
   });
 }
 
@@ -71,6 +66,6 @@ export function deleteFeature(
 ): Promise<void> {
   return request<void>(`/features/${featureKey}`, {
     accessToken,
-    method: 'DELETE',
+    method: "DELETE",
   });
 }

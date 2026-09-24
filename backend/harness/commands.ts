@@ -8,8 +8,7 @@ import {
   writeFileSync,
   unlinkSync,
 } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { isDeepStrictEqual } from 'node:util';
+import { join } from 'node:path';
 import {
   artifacts,
   assertHarnessDatabase,
@@ -19,18 +18,17 @@ import {
   type HarnessSettings,
 } from './environment';
 import { createHarnessApplication } from './application';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaService } from '../src/database/prisma.service';
 import { seedFixtures } from './fixtures';
 import {
   artifactDirectory,
-  comparisonView,
-  exportCapture,
   inspectFeature,
   json,
   saveJson,
 } from './inspection';
-import type { AnalysisInputSnapshotV2 } from '../src/analysis/contracts/analysis-contracts';
-import { liveCheck } from './live-check';
+import { exportRetiredDerivatives } from '../scripts/export-retired-derivatives';
 
 const backend = join(root, 'backend');
 const cli = join(backend, 'harness/entry.ts');
@@ -38,7 +36,7 @@ const tsNode = join(backend, 'node_modules/ts-node/register');
 const nodeArgs = ['-r', tsNode];
 const prismaCli = join(backend, 'node_modules/prisma/build/index.js');
 const controlUrl = 'http://127.0.0.1:3199';
-const modeArgs = () => (process.env.HARNESS_MODE === 'live' ? ['--live'] : []);
+const modeArgs = () => [];
 const compose = ['compose', '-f', join(backend, 'harness/compose.yml')];
 const pause = (ms: number) =>
   new Promise((resolvePause) => setTimeout(resolvePause, ms));
@@ -149,7 +147,7 @@ async function supervisor(settings: HarnessSettings) {
     res.setHeader('Content-Type', 'application/json');
     res.end(
       json({
-        identity: 'featurewise-harness-v1',
+        identity: 'featurewise-console-harness-v1',
         providerMode: process.env.HARNESS_MODE,
         processes: children.map((child) => child.pid),
       }),
@@ -229,7 +227,7 @@ export async function execute(
       console.log('Harness API/database health and frontend are ready.');
     }
     console.log(
-      'Chrome: verify the CLI connection with Chrome DevTools MCP. Live credentials are not probed by doctor.',
+      'Chrome: verify the CLI connection with Chrome DevTools MCP. The harness never calls cloud services.',
     );
     return;
   }
@@ -239,6 +237,24 @@ export async function execute(
     await portFree(3100);
     await portFree(5174);
     await run('docker', [...compose, 'up', '-d', '--wait']);
+    // Preflight on the dedicated DB only, before any old derivative columns disappear.
+    const prisma = new PrismaClient({
+      adapter: new PrismaPg(process.env.DATABASE_URL!),
+    });
+    try {
+      const [state] = await prisma.$queryRaw<
+        { present: boolean }[]
+      >`SELECT to_regclass('context_artifact') IS NOT NULL AS present`;
+      if (state.present)
+        console.log(
+          await exportRetiredDerivatives(
+            prisma,
+            artifactDirectory('retired-derivatives'),
+          ),
+        );
+    } finally {
+      await prisma.$disconnect();
+    }
     await run(process.execPath, [prismaCli, 'migrate', 'deploy']);
     writeFileSync(modeFile, json({ mode: process.env.HARNESS_MODE }));
     await execute('seed', [], settings);
@@ -263,7 +279,7 @@ export async function execute(
       throw error;
     }
     const session = {
-      identity: 'featurewise-harness-v1',
+      identity: 'featurewise-console-harness-v1',
       providerMode: process.env.HARNESS_MODE,
       api: 'http://127.0.0.1:3100',
       frontend: 'http://127.0.0.1:5174',
@@ -324,54 +340,19 @@ export async function execute(
     );
     writeFileSync(join(artifacts, 'fixtures.json'), json(fixtures));
     console.log(
-      `Fixtures ready. Login: harness.operator; password is in .harness/environment.json (not printed).`,
+      `Fixtures ready. Login: harness.operator; password is in .harness/console/environment.json (not printed).`,
     );
     return;
   }
-  if (command === 'inspect' || command === 'capture') {
+  if (command === 'inspect') {
     await withApplication(async (app) => {
-      const featureKey = option(args, '--feature');
-      if (command === 'inspect') {
-        const directory = artifactDirectory('inspection');
-        saveJson(
-          join(directory, 'feature.json'),
-          await inspectFeature(app, settings, featureKey),
-        );
-        console.log(directory);
-      } else
-        console.log(
-          (
-            await exportCapture(
-              app,
-              settings,
-              option(args, '--project'),
-              featureKey,
-              args.includes('--attachments'),
-            )
-          ).directory,
-        );
+      const directory = artifactDirectory('inspection');
+      saveJson(
+        join(directory, 'feature.json'),
+        await inspectFeature(app, option(args, '--feature')),
+      );
+      console.log(directory);
     });
-    return;
-  }
-  if (command === 'compare') {
-    const left = comparisonView(
-      JSON.parse(
-        readFileSync(resolve(option(args, '--left')), 'utf8'),
-      ) as AnalysisInputSnapshotV2,
-    );
-    const right = comparisonView(
-      JSON.parse(
-        readFileSync(resolve(option(args, '--right')), 'utf8'),
-      ) as AnalysisInputSnapshotV2,
-    );
-    const directory = artifactDirectory('comparison');
-    saveJson(join(directory, 'left.json'), left);
-    saveJson(join(directory, 'right.json'), right);
-    saveJson(join(directory, 'result.json'), {
-      equal: isDeepStrictEqual(left, right),
-      ignoredFields: ['capturedAt', 'repository.capturedAt'],
-    });
-    console.log(directory);
     return;
   }
   if (
@@ -380,10 +361,6 @@ export async function execute(
     command === 'test:http'
   ) {
     assertHarnessMode();
-    if (process.env.HARNESS_MODE === 'live')
-      throw new Error(
-        'Automated integration suites require deterministic mode',
-      );
     const directory = artifactDirectory('tests');
     const configs =
       command === 'test:postgres'
@@ -411,11 +388,7 @@ export async function execute(
     if (failed) throw new Error('Integration suite failed');
     return;
   }
-  if (command === 'live-check') {
-    await liveCheck(settings, args);
-    return;
-  }
   console.log(
-    'Commands: doctor, up, status, seed, reset, down, studio, inspect --feature FEAT-*, capture --project PRJ-* --feature FEAT-* [--attachments], compare --left <snapshot> --right <snapshot>, test, test:postgres, test:http, live-check. Add --live only for explicitly configured live resources.',
+    'Commands: doctor, up, status, seed, reset, down, studio, inspect --feature FEAT-*, test, test:postgres, test:http.',
   );
 }

@@ -5,50 +5,37 @@ import {
   Pencil,
   Plus,
   Trash2,
-} from 'lucide-react';
-import { useEffect, useMemo } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+} from "lucide-react";
+import { useMemo } from "react";
+import { Link, useParams } from "react-router-dom";
 
-import { useAuth } from '@/features/auth';
-import { ProjectContextPanel } from '@/features/context';
-import { ProjectRepositoryPanel } from '@/features/repository-context';
+import { useAuth } from "@/features/auth";
 import {
   getFeaturePath,
   useFeatureActions,
   useProjectFeatures,
   type Feature,
-} from '@/features/features';
+} from "@/features/features";
 import {
   getProjectPath,
   useProject,
   useProjectActions,
-} from '@/features/workspace';
-import { ApiError } from '@/shared/api';
-import { usePageHeaderRegistration } from '@/shared/model';
-import { Breadcrumb } from '@/shared/ui/breadcrumb';
-import { Button } from '@/shared/ui/button';
-import { Card } from '@/shared/ui/card';
-import { MenuItem } from '@/shared/ui/menu';
-import { MenuPopover } from '@/shared/ui/menu-popover';
-import { Tabs, type TabsItems } from '@/shared/ui/tabs';
+} from "@/features/workspace";
+import { ApiError } from "@/shared/api";
+import { usePageHeaderRegistration } from "@/shared/model";
+import { Breadcrumb } from "@/shared/ui/breadcrumb";
+import { Button } from "@/shared/ui/button";
+import { Card } from "@/shared/ui/card";
+import { MenuItem } from "@/shared/ui/menu";
+import { MenuPopover } from "@/shared/ui/menu-popover";
 
-import styles from './ProjectPage.module.css';
+import styles from "./ProjectPage.module.css";
 
-const PROJECT_TAB_IDS = ['features', 'context', 'repository'] as const;
-type ProjectTabId = (typeof PROJECT_TAB_IDS)[number];
-
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-});
-
-function isProjectTabId(value: string | null): value is ProjectTabId {
-  return PROJECT_TAB_IDS.some((tabId) => tabId === value);
-}
+const dateFormatter = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 
 function isNotFound(error: unknown) {
   return (
-    error instanceof ApiError &&
-    (error.status === 400 || error.status === 404)
+    error instanceof ApiError && (error.status === 400 || error.status === 404)
   );
 }
 
@@ -65,15 +52,14 @@ function FeatureCard({
 }) {
   return (
     <li className={styles.featureItem}>
-      <Card className={styles.featureCard} height='100%' width='100%'>
+      <Card className={styles.featureCard} height="100%" width="100%">
         <article className={styles.cardContent}>
           <div className={styles.cardHeading}>
-            <span aria-hidden='true' className={styles.featureIcon}>
+            <span aria-hidden="true" className={styles.featureIcon}>
               <FileText size={18} strokeWidth={1.75} />
             </span>
             <h2 className={styles.featureTitle}>
               <Link
-                aria-describedby={`feature-${feature.publicKey}-specification`}
                 className={styles.featureLink}
                 to={getFeaturePath(projectPublicKey, feature.publicKey)}
               >
@@ -91,20 +77,13 @@ function FeatureCard({
                 <MenuItem
                   leadingIcon={<Trash2 size={16} strokeWidth={1.75} />}
                   onClick={() => onDelete(feature)}
-                  variant='danger'
+                  variant="danger"
                 >
                   Delete feature
                 </MenuItem>
               </MenuPopover>
             </div>
           </div>
-
-          <p
-            className={styles.specification}
-            id={`feature-${feature.publicKey}-specification`}
-          >
-            {feature.specificationContent || 'No feature specification yet.'}
-          </p>
 
           <time
             className={styles.updatedAt}
@@ -131,7 +110,7 @@ function FeatureCards({
 }) {
   if (features.length === 0) {
     return (
-      <p className={styles.status} role='status'>
+      <p className={styles.status} role="status">
         No features yet.
       </p>
     );
@@ -166,41 +145,9 @@ function ProjectContent({
   const projectQuery = useProject(accessToken, organizationKey, projectKey);
   const { openEdit: openEditProject } = useProjectActions();
   const featureActions = useFeatureActions();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requestedTab = searchParams.get('tab');
-  const activeTab: ProjectTabId = isProjectTabId(requestedTab)
-    ? requestedTab
-    : 'features';
-  const featuresQuery = useProjectFeatures(
-    accessToken,
-    projectKey,
-    activeTab === 'features',
-  );
-  const projectNotFound = projectQuery.isError && isNotFound(projectQuery.error);
-  const tabs = useMemo<TabsItems>(
-    () => [
-      {
-        id: 'features',
-        info: featuresQuery.data?.length,
-        label: 'Features',
-        panelId: 'project-features-panel',
-        tabId: 'project-features-tab',
-      },
-      {
-        id: 'context',
-        label: 'Project context',
-        panelId: 'project-context-panel',
-        tabId: 'project-context-tab',
-      },
-      {
-        id: 'repository',
-        label: 'Repository',
-        panelId: 'project-repository-panel',
-        tabId: 'project-repository-tab',
-      },
-    ],
-    [featuresQuery.data?.length],
-  );
+  const featuresQuery = useProjectFeatures(accessToken, projectKey);
+  const projectNotFound =
+    projectQuery.isError && isNotFound(projectQuery.error);
   const pageHeader = useMemo(
     () => ({
       actions: projectQuery.data ? (
@@ -208,57 +155,49 @@ function ProjectContent({
           <Button
             leadingIcon={<Pencil size={16} strokeWidth={1.75} />}
             onClick={() => openEditProject(projectQuery.data)}
-            variant='secondary'
+            variant="secondary"
           >
             Edit project
           </Button>
-          {activeTab === 'features' ? (
-            <Button
-              leadingIcon={<Plus size={16} strokeWidth={1.75} />}
-              onClick={() =>
-                featureActions.openCreate({
-                  projectKey: projectQuery.data.publicKey,
-                })
-              }
-            >
-              Add feature
-            </Button>
-          ) : null}
+
+          <Button
+            leadingIcon={<Plus size={16} strokeWidth={1.75} />}
+            onClick={() =>
+              featureActions.openCreate({
+                projectKey: projectQuery.data.publicKey,
+              })
+            }
+          >
+            Add feature
+          </Button>
         </>
       ) : undefined,
       breadcrumb: (
         <Breadcrumb
           items={[
             {
-              href: '/',
+              href: "/",
               icon: <FolderClosed size={14} strokeWidth={1.75} />,
-              kind: 'folder' as const,
-              label: 'Projects',
+              kind: "folder" as const,
+              label: "Projects",
             },
             {
-              href: getProjectPath(
-                projectQuery.data?.publicKey ?? projectKey,
-              ),
+              href: getProjectPath(projectQuery.data?.publicKey ?? projectKey),
               icon: <FolderKanban size={14} strokeWidth={1.75} />,
-              kind: 'item' as const,
+              kind: "item" as const,
               label: projectNotFound
-                ? 'Project not found'
-                : projectQuery.data?.name ?? 'Project',
+                ? "Project not found"
+                : (projectQuery.data?.name ?? "Project"),
             },
           ]}
-          titleId='project-title'
+          titleId="project-title"
         />
       ),
       subtitle: projectQuery.data
-        ? activeTab === 'features'
-          ? 'Open a feature to edit its specification and supporting context.'
-          : activeTab === 'context'
-            ? 'Add shared project-level context for future feature analyses.'
-            : 'Connect and configure the GitHub repository used as traceable feature context.'
+        ? "Create and manage the features in this project."
         : undefined,
     }),
     [
-      activeTab,
       featureActions,
       openEditProject,
       projectKey,
@@ -268,14 +207,6 @@ function ProjectContent({
   );
   usePageHeaderRegistration(pageHeader);
 
-  useEffect(() => {
-    if (requestedTab === activeTab) return;
-
-    const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.set('tab', activeTab);
-    setSearchParams(nextSearchParams, { replace: true });
-  }, [activeTab, requestedTab, searchParams, setSearchParams]);
-
   if (projectQuery.isPending) {
     return <p className={styles.status}>Loading project...</p>;
   }
@@ -283,8 +214,8 @@ function ProjectContent({
   if (projectQuery.isError) {
     if (isNotFound(projectQuery.error)) {
       return (
-        <section className={styles.page} aria-labelledby='project-title'>
-          <p className='fw-overline'>404</p>
+        <section className={styles.page} aria-labelledby="project-title">
+          <p className="fw-overline">404</p>
           <p className={styles.status}>
             This project does not exist or is not available.
           </p>
@@ -293,73 +224,36 @@ function ProjectContent({
     }
 
     return (
-      <div className={styles.status} role='alert'>
+      <div className={styles.status} role="alert">
         <p>The project could not be loaded.</p>
-        <Button onClick={() => void projectQuery.refetch()} size='small'>
+        <Button onClick={() => void projectQuery.refetch()} size="small">
           Retry
         </Button>
       </div>
     );
   }
 
-  const activeTabItem = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
-
   return (
-    <section className={styles.page} aria-labelledby='project-title'>
-      <Tabs
-        aria-label='Project workspace'
-        items={tabs}
-        onValueChange={(value) => {
-          if (!isProjectTabId(value)) return;
-
-          const nextSearchParams = new URLSearchParams(searchParams);
-          nextSearchParams.set('tab', value);
-          setSearchParams(nextSearchParams);
-        }}
-        value={activeTab}
-      />
-
-      <div
-        aria-labelledby={activeTabItem.tabId}
-        id={activeTabItem.panelId}
-        role='tabpanel'
-        tabIndex={0}
-      >
-        {activeTab === 'features' ? (
-          featuresQuery.isPending ? (
-            <p className={styles.status} role='status'>
-              Loading features...
-            </p>
-          ) : featuresQuery.isError ? (
-            <div className={styles.status} role='alert'>
-              <p>Features could not be loaded.</p>
-              <Button
-                onClick={() => void featuresQuery.refetch()}
-                size='small'
-              >
-                Retry
-              </Button>
-            </div>
-          ) : (
-            <FeatureCards
-              features={featuresQuery.data}
-              onDelete={featureActions.openDelete}
-              onEdit={featureActions.openEdit}
-              projectPublicKey={projectQuery.data.publicKey}
-            />
-          )
-        ) : activeTab === 'context' ? (
-          <ProjectContextPanel
-            accessToken={accessToken}
-            projectKey={projectQuery.data.publicKey}
-          />
-        ) : (
-          <ProjectRepositoryPanel
-            accessToken={accessToken}
-            projectKey={projectQuery.data.publicKey}
-          />
-        )}
-      </div>
+    <section className={styles.page} aria-labelledby="project-title">
+      {featuresQuery.isPending ? (
+        <p className={styles.status} role="status">
+          Loading features...
+        </p>
+      ) : featuresQuery.isError ? (
+        <div className={styles.status} role="alert">
+          <p>Features could not be loaded.</p>
+          <Button onClick={() => void featuresQuery.refetch()} size="small">
+            Retry
+          </Button>
+        </div>
+      ) : (
+        <FeatureCards
+          features={featuresQuery.data}
+          onDelete={featureActions.openDelete}
+          onEdit={featureActions.openEdit}
+          projectPublicKey={projectQuery.data.publicKey}
+        />
+      )}
     </section>
   );
 }
@@ -371,7 +265,7 @@ export function ProjectPage() {
   if (!projectKey) {
     return (
       <section className={styles.page}>
-        <p className='fw-overline'>404</p>
+        <p className="fw-overline">404</p>
         <h1>Project not found</h1>
         <p className={styles.status}>The project address is invalid.</p>
       </section>

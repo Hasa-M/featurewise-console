@@ -1,4 +1,4 @@
-import { request } from '@/shared/api';
+import { request } from "@/shared/api";
 
 export interface ProjectDto {
   readonly createdAt: string;
@@ -41,6 +41,18 @@ export function updateProject(
   return request<ProjectDto>(`/projects/${projectKey}`, {
     accessToken,
     body: input,
-    method: 'PATCH',
+    method: "PATCH",
+  });
+}
+
+export function createProject(
+  accessToken: string,
+  organizationKey: string,
+  input: UpdateProjectDto,
+): Promise<ProjectDto> {
+  return request<ProjectDto>(`/organizations/${organizationKey}/projects`, {
+    accessToken,
+    body: input,
+    method: "POST",
   });
 }

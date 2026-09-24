@@ -1,42 +1,41 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMemo, useState, type ReactNode } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMemo, useState, type ReactNode } from "react";
+import { Controller, useForm } from "react-hook-form";
 
-import { getApiErrorMessage } from '@/shared/api';
-import { ConfirmModal } from '@/shared/ui/confirm-modal';
-import { FormModal } from '@/shared/ui/form-modal';
-import { TextArea } from '@/shared/ui/text-area';
-import { TextInput } from '@/shared/ui/text-input';
+import { getApiErrorMessage } from "@/shared/api";
+import { ConfirmModal } from "@/shared/ui/confirm-modal";
+import { FormModal } from "@/shared/ui/form-modal";
+import { TextInput } from "@/shared/ui/text-input";
 
 import {
   featureCreateSchema,
   featureQuickEditSchema,
   type FeatureCreateValues,
   type FeatureQuickEditValues,
-} from '../lib/feature-form-schemas';
+} from "../lib/feature-form-schemas";
 import {
   FeatureActionsContext,
   type FeatureActionsContextValue,
   type FeatureCreateSuccessBehavior,
   type FeatureDeleteSuccessBehavior,
-} from '../model/feature-actions';
+} from "../model/feature-actions";
 import {
   useCreateFeature,
   useDeleteFeature,
   useUpdateFeature,
   type Feature,
-} from '../model/features';
+} from "../model/features";
 
 type FeatureAction =
   | {
-      readonly kind: 'create';
+      readonly kind: "create";
       readonly projectKey: string;
       readonly successBehavior: FeatureCreateSuccessBehavior;
     }
-  | { readonly feature: Feature; readonly kind: 'edit' }
+  | { readonly feature: Feature; readonly kind: "edit" }
   | {
       readonly feature: Feature;
-      readonly kind: 'delete';
+      readonly kind: "delete";
       readonly successBehavior: FeatureDeleteSuccessBehavior;
     };
 
@@ -47,7 +46,7 @@ function CreateFeatureDialog({
   onCreated,
 }: {
   readonly accessToken: string;
-  readonly action: Extract<FeatureAction, { kind: 'create' }>;
+  readonly action: Extract<FeatureAction, { kind: "create" }>;
   readonly close: () => void;
   readonly onCreated: (
     feature: Feature,
@@ -56,16 +55,19 @@ function CreateFeatureDialog({
 }) {
   const mutation = useCreateFeature(accessToken);
   const form = useForm<FeatureCreateValues>({
-    defaultValues: { specificationContent: '', title: '' },
+    defaultValues: { title: "" },
     resolver: zodResolver(featureCreateSchema),
   });
 
   return (
     <FormModal
-      description='Create the feature and optionally add its canonical specification. Supporting context remains in its workspace.'
+      description="Create a feature to organize its review history."
       errorMessage={
         mutation.error
-          ? getApiErrorMessage(mutation.error, 'The feature could not be created.')
+          ? getApiErrorMessage(
+              mutation.error,
+              "The feature could not be created.",
+            )
           : null
       }
       onOpenChange={(open) => {
@@ -75,51 +77,30 @@ function CreateFeatureDialog({
       onSubmit={form.handleSubmit(async (values) => {
         const feature = await mutation.mutateAsync({
           projectKey: action.projectKey,
-          specificationContent: values.specificationContent,
           title: values.title,
         });
         close();
         onCreated(feature, action.successBehavior);
       })}
       open
-      submitLabel='Create feature'
+      submitLabel="Create feature"
       submitting={mutation.isPending}
-      title='Create feature'
+      title="Create feature"
     >
       <Controller
         control={form.control}
-        name='title'
+        name="title"
         render={({ field, fieldState }) => (
           <TextInput
             disabled={mutation.isPending}
             errorMessage={fieldState.error?.message}
-            label='Feature title'
+            label="Feature title"
             maxLength={180}
             name={field.name}
             onBlur={field.onBlur}
             onChange={field.onChange}
-            placeholder='For example, Saved views'
+            placeholder="For example, Saved views"
             required
-            value={field.value}
-          />
-        )}
-      />
-      <Controller
-        control={form.control}
-        name='specificationContent'
-        render={({ field, fieldState }) => (
-          <TextArea
-            disabled={mutation.isPending}
-            errorMessage={fieldState.error?.message}
-            helperText='You can continue editing this in the Feature workspace.'
-            label='Feature specification'
-            maxLength={2000}
-            name={field.name}
-            onBlur={field.onBlur}
-            onChange={field.onChange}
-            placeholder='Describe the intended behavior, requirements, and acceptance criteria.'
-            rows={6}
-            showCharacterCount
             value={field.value}
           />
         )}
@@ -147,10 +128,13 @@ function EditFeatureDialog({
 
   return (
     <FormModal
-      description='Rename the feature without changing its specification or supporting context.'
+      description="Choose a title for this feature."
       errorMessage={
         mutation.error
-          ? getApiErrorMessage(mutation.error, 'The feature could not be saved.')
+          ? getApiErrorMessage(
+              mutation.error,
+              "The feature could not be saved.",
+            )
           : null
       }
       onOpenChange={(open) => {
@@ -165,18 +149,18 @@ function EditFeatureDialog({
         close();
       })}
       open
-      submitLabel='Save changes'
+      submitLabel="Save changes"
       submitting={mutation.isPending}
-      title='Edit feature'
+      title="Edit feature"
     >
       <Controller
         control={form.control}
-        name='title'
+        name="title"
         render={({ field, fieldState }) => (
           <TextInput
             disabled={mutation.isPending}
             errorMessage={fieldState.error?.message}
-            label='Feature title'
+            label="Feature title"
             maxLength={180}
             name={field.name}
             onBlur={field.onBlur}
@@ -197,7 +181,7 @@ function DeleteFeatureDialog({
   onDeleted,
 }: {
   readonly accessToken: string;
-  readonly action: Extract<FeatureAction, { kind: 'delete' }>;
+  readonly action: Extract<FeatureAction, { kind: "delete" }>;
   readonly close: () => void;
   readonly onDeleted: (
     feature: Feature,
@@ -208,12 +192,15 @@ function DeleteFeatureDialog({
 
   return (
     <ConfirmModal
-      cancelLabel='Keep feature'
-      confirmLabel='Delete feature'
+      cancelLabel="Keep feature"
+      confirmLabel="Delete feature"
       description={`Delete ${action.feature.title}? Its workspace will no longer be available. A feature with an active run cannot be deleted.`}
       errorMessage={
         mutation.error
-          ? getApiErrorMessage(mutation.error, 'The feature could not be deleted.')
+          ? getApiErrorMessage(
+              mutation.error,
+              "The feature could not be deleted.",
+            )
           : null
       }
       onConfirm={() => {
@@ -227,8 +214,8 @@ function DeleteFeatureDialog({
       }}
       open
       pending={mutation.isPending}
-      title='Delete feature?'
-      variant='danger'
+      title="Delete feature?"
+      variant="danger"
     />
   );
 }
@@ -253,13 +240,11 @@ export function FeatureActionsProvider({
   const [action, setAction] = useState<FeatureAction>();
   const value = useMemo<FeatureActionsContextValue>(
     () => ({
-      openCreate: ({ projectKey, successBehavior = 'open-created' }) =>
-        setAction({ kind: 'create', projectKey, successBehavior }),
-      openDelete: (
-        feature,
-        { successBehavior = 'parent-if-current' } = {},
-      ) => setAction({ feature, kind: 'delete', successBehavior }),
-      openEdit: (feature) => setAction({ feature, kind: 'edit' }),
+      openCreate: ({ projectKey, successBehavior = "open-created" }) =>
+        setAction({ kind: "create", projectKey, successBehavior }),
+      openDelete: (feature, { successBehavior = "parent-if-current" } = {}) =>
+        setAction({ feature, kind: "delete", successBehavior }),
+      openEdit: (feature) => setAction({ feature, kind: "edit" }),
     }),
     [],
   );
@@ -268,20 +253,20 @@ export function FeatureActionsProvider({
   return (
     <FeatureActionsContext.Provider value={value}>
       {children}
-      {action?.kind === 'create' ? (
+      {action?.kind === "create" ? (
         <CreateFeatureDialog
           accessToken={accessToken}
           action={action}
           close={close}
           onCreated={onCreated}
         />
-      ) : action?.kind === 'edit' ? (
+      ) : action?.kind === "edit" ? (
         <EditFeatureDialog
           accessToken={accessToken}
           close={close}
           feature={action.feature}
         />
-      ) : action?.kind === 'delete' ? (
+      ) : action?.kind === "delete" ? (
         <DeleteFeatureDialog
           accessToken={accessToken}
           action={action}

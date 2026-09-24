@@ -1,6 +1,10 @@
 import { loadHarnessEnvironment } from './environment';
 
-const mode = process.argv.includes('--live') ? 'live' : 'deterministic';
+if (process.argv.includes('--live'))
+  throw new Error(
+    'Live mode has been removed. Harness never calls cloud services.',
+  );
+const mode = 'deterministic';
 async function main() {
   const settings = loadHarnessEnvironment(mode);
   // Nest configuration reads environment during module evaluation; load it first.

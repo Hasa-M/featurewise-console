@@ -36,4 +36,4 @@ Extract logic when it is reusable, independently testable, duplicated, or materi
 
 Keep endpoint functions and wire DTOs in the owning feature's `api` segment. Keep session state and authentication hooks in the auth feature's `model` segment, with application-wide provider or router wiring in `app`. Page and feature UI must not call `shared/api` directly.
 
-Do not add frontend business rules that belong to the backend. Do not introduce roles or permissions in the local-first MVP; ADR-0015 defers them.
+Do not add frontend business rules that belong to the backend. Keep the single-operator authentication scope in ADR-0039; roles and permissions remain deferred.

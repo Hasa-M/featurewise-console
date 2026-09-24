@@ -4,12 +4,6 @@ Date: 2026-07-22
 
 Status: accepted
 
-Amended by: [ADR-0030](ADR-0030-specification-analysis-core-domain.md)
-
-> TanStack Query remains the Console server-state owner. Analysis-run,
-> findings, and review query contracts will be added only with the real
-> analysis vertical slice; no placeholder query is introduced by ADR-0030.
-
 ## Context
 
 The authenticated React application needs organization, project, and feature data in the persistent navigation shell and route pages. Manual effects would duplicate requests, freshness rules, retry handling, and loading state across those consumers. React Router already owns URL matching and client-side navigation, but it is not the cache for REST resources.

@@ -1,10 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { parse } from 'dotenv';
 
 export const root = resolve(__dirname, '../..');
-export const artifacts = resolve(root, '.harness');
+export const artifacts = resolve(root, '.harness/console');
 export const settingsFile = resolve(artifacts, 'environment.json');
 export const modeFile = resolve(artifacts, 'database-mode.json');
 
@@ -21,7 +20,7 @@ export function assertHarnessMode(): void {
 }
 
 export interface HarnessSettings {
-  identity: 'featurewise-harness-v1';
+  identity: 'featurewise-console-harness-v1';
   databasePassword: string;
   operatorPassword: string;
   tokenSecret: string;
@@ -44,7 +43,7 @@ export function assertHarnessDatabase(value: string): void {
 }
 
 export function loadHarnessEnvironment(
-  mode: 'deterministic' | 'live' = 'deterministic',
+  mode: 'deterministic' = 'deterministic',
 ) {
   mkdirSync(artifacts, { recursive: true });
   if (!existsSync(settingsFile)) {
@@ -52,7 +51,7 @@ export function loadHarnessEnvironment(
       settingsFile,
       JSON.stringify(
         {
-          identity: 'featurewise-harness-v1',
+          identity: 'featurewise-console-harness-v1',
           databasePassword: randomBytes(24).toString('hex'),
           operatorPassword: randomBytes(18).toString('base64url'),
           tokenSecret: randomBytes(32).toString('hex'),
@@ -67,26 +66,17 @@ export function loadHarnessEnvironment(
     readFileSync(settingsFile, 'utf8'),
   ) as HarnessSettings;
   if (
-    settings.identity !== 'featurewise-harness-v1' ||
+    settings.identity !== 'featurewise-console-harness-v1' ||
     !settings.databasePassword ||
     !settings.operatorPassword ||
     !settings.tokenSecret
   ) {
     throw new Error('Invalid harness environment identity or credentials');
   }
-  // Load only the dedicated live file. Never inherit the ordinary backend .env.
-  const liveFile = resolve(artifacts, 'live.env');
-  const live =
-    mode === 'live' && existsSync(liveFile)
-      ? parse(readFileSync(liveFile))
-      : {};
+  // Never inherit normal database or cloud settings in the isolated harness.
   for (const name of Object.keys(process.env)) {
-    if (/^(DATABASE_|GITHUB_|S3_|AUTH_|AWS_|SEED_|HARNESS_)/.test(name))
+    if (/^(DATABASE_|S3_|AUTH_|AWS_|SEED_|HARNESS_)/.test(name))
       delete process.env[name];
-  }
-  for (const [key, value] of Object.entries(live)) {
-    if (/^(GITHUB_|S3_|AWS_|LIBREOFFICE_PATH$)/.test(key))
-      process.env[key] = value;
   }
   Object.assign(process.env, {
     NODE_ENV: 'test',
@@ -98,29 +88,10 @@ export function loadHarnessEnvironment(
     AUTH_TOKEN_SECRET: settings.tokenSecret,
     VITE_API_PROXY_TARGET: 'http://127.0.0.1:3100',
   });
-  if (mode === 'deterministic') {
-    Object.assign(process.env, {
-      GITHUB_ENABLED: 'true',
-      GITHUB_APP_ID: '1',
-      GITHUB_APP_SLUG: 'harness',
-      GITHUB_CLIENT_ID: 'harness',
-      GITHUB_CLIENT_SECRET: 'harness',
-      GITHUB_PRIVATE_KEY_BASE64: Buffer.from(
-        '-----BEGIN PRIVATE KEY-----\nharness\n-----END PRIVATE KEY-----',
-      ).toString('base64'),
-      GITHUB_CALLBACK_URL: 'http://127.0.0.1:3100/integrations/github/callback',
-      GITHUB_FRONTEND_BASE_URL: 'http://127.0.0.1:5174',
-      S3_BUCKET: 'harness-fixtures',
-      S3_KEY_PREFIX: 'harness',
-      AWS_EC2_METADATA_DISABLED: 'true',
-    });
-  } else {
-    if (!process.env.S3_KEY_PREFIX?.startsWith('harness/')) {
-      throw new Error(
-        'Live mode requires S3_KEY_PREFIX=harness/<dedicated-test-prefix> in .harness/live.env',
-      );
-    }
-  }
+  Object.assign(process.env, {
+    S3_BUCKET: '',
+    AWS_EC2_METADATA_DISABLED: 'true',
+  });
   assertHarnessDatabase(process.env.DATABASE_URL!);
   return settings;
 }

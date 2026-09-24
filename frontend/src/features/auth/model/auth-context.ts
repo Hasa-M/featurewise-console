@@ -1,13 +1,12 @@
-import { createContext } from 'react';
+import { createContext } from "react";
 
 export interface AuthUser {
   readonly userKey: string;
   readonly username: string;
   readonly organizationKey: string;
-  readonly projectKey: string;
 }
 
-export type AuthStatus = 'initializing' | 'authenticated' | 'anonymous';
+export type AuthStatus = "initializing" | "authenticated" | "anonymous";
 
 export interface SignInCredentials {
   readonly username: string;
